@@ -99,9 +99,6 @@ CHAR_REPLACEMENTS = {
     "ﬃ": "ffi",
     "ﬄ": "ffl",
     "ﬆ": "st",
-    "ﬁ": "fi",
-    "ﬀ": "ff",
-    "ﬂ": "fl",
 }
 
 # ---------------------------------------------------------------------------
@@ -110,6 +107,138 @@ CHAR_REPLACEMENTS = {
 
 REGEX_RULES_GENERAL = [
 
+
+    # --- Artefactos de paginación y cabeceras ---
+
+    (re.compile(r"^\s*\d{1,4}\s*$", re.MULTILINE),
+     "",
+     "Elimina líneas que son solo números de página"),
+
+    # --- Guiones de fin de línea (división silábica del original) ---
+
+    (re.compile(r"(\w)-\n(\w)", re.UNICODE),
+     r"\1\2",
+     "Reúne palabras divididas con guión de fin de línea"),
+
+    (re.compile(r"(\w)- \n(\w)", re.UNICODE),
+     r"\1\2",
+     "Reúne palabras divididas con guión+espacio de fin de línea"),
+
+    # --- Espacios espurios ---
+
+    (re.compile(r" {2,}"),
+     " ",
+     "Colapsa espacios múltiples"),
+
+    (re.compile(r" ([,\.\!\?\:\;])(?!\s*\n)"),
+     r"\1",
+     "Elimina espacio antes de puntuación"),
+
+    (re.compile(r"\n{3,}"),
+     "\n\n",
+     "Colapsa líneas en blanco múltiples"),
+
+    # --- Confusiones numéricas en contexto latino ---
+
+    (re.compile(
+        r"(?<=[a-záéíóúàèìòùäëïöüâêîôûæœ])1(?=[a-záéíóúàèìòùäëïöüâêîôûæœ])",
+        re.IGNORECASE | re.UNICODE,
+    ),
+     "l",
+     "1 entre letras latinas → l"),
+
+    (re.compile(
+        r"(?<=[a-záéíóúàèìòùäëïöüâêîôûæœ])0(?=[a-záéíóúàèìòùäëïöüâêîôûæœ])",
+        re.IGNORECASE | re.UNICODE,
+    ),
+     "o",
+     "0 entre letras latinas → o"),
+
+    # --- Confusiones multi-carácter de Tesseract en contexto griego ---
+    # Se aplican aquí (antes de la segmentación) porque los chars implicados
+    # son latinos y romperían el run griego si no se tratan primero.
+
+    (re.compile(rf"(?<={GREEK_CHAR})ij|ij(?={GREEK_CHAR})"),
+     "η",
+     "ij en contexto griego → η"),
+
+    (re.compile(rf"(?<={GREEK_CHAR})rj|rj(?={GREEK_CHAR})"),
+     "η",
+     "rj en contexto griego → η"),
+
+    (re.compile(rf"(?<={GREEK_CHAR})cp|cp(?={GREEK_CHAR})"),
+     "φ",
+     "cp en contexto griego → φ"),
+
+    (re.compile(rf"(?<={GREEK_CHAR})<p|<p(?={GREEK_CHAR})"),
+     "φ",
+     "<p en contexto griego → φ"),
+
+    (re.compile(rf"(?<={GREEK_CHAR})©|©(?={GREEK_CHAR})"),
+     "θ",
+     "© en contexto griego → θ (theta)"),
+
+    # --- Referencias bibliográficas ---
+
+    (re.compile(r"\bp p\.\s*(\d)"),
+     r"pp. \1",
+     "Corrige 'p p.' → 'pp.'"),
+
+    (re.compile(r"\bI bid\b", re.IGNORECASE),
+     "Ibid",
+     "Corrige 'I bid' → 'Ibid'"),
+
+    (re.compile(r"\bop\s*\.\s*cit\s*\."),
+     "op. cit.",
+     "Normaliza 'op. cit.'"),
+
+    # --- Artefactos de columnas y tablas ---
+
+    (re.compile(r"\t+"),
+     " ",
+     "Convierte tabulaciones en espacios"),
+
+    (re.compile(r"^\s*[-=\*]{3,}\s*$", re.MULTILINE),
+     "",
+     "Elimina líneas separadoras de columna"),
+
+    # --- Ortografía académica francesa ---
+
+    (re.compile(r"«\s+"),
+     "« ",
+     "Normaliza espacio tras «"),
+
+    (re.compile(r"\s+»"),
+     " »",
+     "Normaliza espacio antes de »"),
+
+    # --- Notación fonética (IPA) ---
+
+    (re.compile(r"/9:/"),
+     "/ɔː/",
+     "/9:/ → /ɔː/ (IPA)"),
+
+    (re.compile(r"\[9:\]"),
+     "[ɔː]",
+     "[9:] → [ɔː] (IPA)"),
+
+    (re.compile(r'/"([a-zA-Zɑ-ɿʀ-ʿ])'),
+     r"/ʰ\1",
+     '/" → /ʰ (aspirada IPA)'),
+]
+
+# ---------------------------------------------------------------------------
+# 2b. REGLAS ESPECÍFICAS DE CORPUS
+# Generadas automáticamente por ocr_ml_detector.py (herramienta interna, no
+# incluida en este repositorio) a partir de errores observados en documentos
+# concretos ya procesados. Se mantienen separadas de REGEX_RULES_GENERAL
+# porque son correcciones ad hoc (nombres propios, fragmentos de palabras
+# muy específicos) que no tiene sentido aplicar a un PDF nuevo. Actívalas con
+# corregir_texto(texto, incluir_corpus_especifico=True) si vas a reprocesar
+# el mismo corpus de siempre.
+# ---------------------------------------------------------------------------
+
+REGEX_RULES_CORPUS_ESPECIFICO = [
     # Detectado automáticamente por ocr_ml_detector.py
     (re.compile(r"Ilioaı", re.IGNORECASE | re.UNICODE),
      "llioaı",
@@ -330,125 +459,6 @@ REGEX_RULES_GENERAL = [
     (re.compile(r"relaci6n", re.IGNORECASE | re.UNICODE),
      "relación",
      "ci6n→ción (terminación nominal)"),
-
-
-    # --- Artefactos de paginación y cabeceras ---
-
-    (re.compile(r"^\s*\d{1,4}\s*$", re.MULTILINE),
-     "",
-     "Elimina líneas que son solo números de página"),
-
-    # --- Guiones de fin de línea (división silábica del original) ---
-
-    (re.compile(r"(\w)-\n(\w)", re.UNICODE),
-     r"\1\2",
-     "Reúne palabras divididas con guión de fin de línea"),
-
-    (re.compile(r"(\w)- \n(\w)", re.UNICODE),
-     r"\1\2",
-     "Reúne palabras divididas con guión+espacio de fin de línea"),
-
-    # --- Espacios espurios ---
-
-    (re.compile(r" {2,}"),
-     " ",
-     "Colapsa espacios múltiples"),
-
-    (re.compile(r" ([,\.\!\?\:\;])(?!\s*\n)"),
-     r"\1",
-     "Elimina espacio antes de puntuación"),
-
-    (re.compile(r"\n{3,}"),
-     "\n\n",
-     "Colapsa líneas en blanco múltiples"),
-
-    # --- Confusiones numéricas en contexto latino ---
-
-    (re.compile(
-        r"(?<=[a-záéíóúàèìòùäëïöüâêîôûæœ])1(?=[a-záéíóúàèìòùäëïöüâêîôûæœ])",
-        re.IGNORECASE | re.UNICODE,
-    ),
-     "l",
-     "1 entre letras latinas → l"),
-
-    (re.compile(
-        r"(?<=[a-záéíóúàèìòùäëïöüâêîôûæœ])0(?=[a-záéíóúàèìòùäëïöüâêîôûæœ])",
-        re.IGNORECASE | re.UNICODE,
-    ),
-     "o",
-     "0 entre letras latinas → o"),
-
-    # --- Confusiones multi-carácter de Tesseract en contexto griego ---
-    # Se aplican aquí (antes de la segmentación) porque los chars implicados
-    # son latinos y romperían el run griego si no se tratan primero.
-
-    (re.compile(rf"(?<={GREEK_CHAR})ij|ij(?={GREEK_CHAR})"),
-     "η",
-     "ij en contexto griego → η"),
-
-    (re.compile(rf"(?<={GREEK_CHAR})rj|rj(?={GREEK_CHAR})"),
-     "η",
-     "rj en contexto griego → η"),
-
-    (re.compile(rf"(?<={GREEK_CHAR})cp|cp(?={GREEK_CHAR})"),
-     "φ",
-     "cp en contexto griego → φ"),
-
-    (re.compile(rf"(?<={GREEK_CHAR})<p|<p(?={GREEK_CHAR})"),
-     "φ",
-     "<p en contexto griego → φ"),
-
-    (re.compile(rf"(?<={GREEK_CHAR})©|©(?={GREEK_CHAR})"),
-     "θ",
-     "© en contexto griego → θ (theta)"),
-
-    # --- Referencias bibliográficas ---
-
-    (re.compile(r"\bp p\.\s*(\d)"),
-     r"pp. \1",
-     "Corrige 'p p.' → 'pp.'"),
-
-    (re.compile(r"\bI bid\b", re.IGNORECASE),
-     "Ibid",
-     "Corrige 'I bid' → 'Ibid'"),
-
-    (re.compile(r"\bop\s*\.\s*cit\s*\."),
-     "op. cit.",
-     "Normaliza 'op. cit.'"),
-
-    # --- Artefactos de columnas y tablas ---
-
-    (re.compile(r"\t+"),
-     " ",
-     "Convierte tabulaciones en espacios"),
-
-    (re.compile(r"^\s*[-=\*]{3,}\s*$", re.MULTILINE),
-     "",
-     "Elimina líneas separadoras de columna"),
-
-    # --- Ortografía académica francesa ---
-
-    (re.compile(r"«\s+"),
-     "« ",
-     "Normaliza espacio tras «"),
-
-    (re.compile(r"\s+»"),
-     " »",
-     "Normaliza espacio antes de »"),
-
-    # --- Notación fonética (IPA) ---
-
-    (re.compile(r"/9:/"),
-     "/ɔː/",
-     "/9:/ → /ɔː/ (IPA)"),
-
-    (re.compile(r"\[9:\]"),
-     "[ɔː]",
-     "[9:] → [ɔː] (IPA)"),
-
-    (re.compile(r'/"([a-zA-Zɑ-ɿʀ-ʿ])'),
-     r"/ʰ\1",
-     '/" → /ʰ (aspirada IPA)'),
 ]
 
 # ---------------------------------------------------------------------------
@@ -482,7 +492,7 @@ REGEX_RULES_GRIEGO = [
 ]
 
 # Alias para compatibilidad con código externo
-REGEX_RULES = REGEX_RULES_GENERAL + REGEX_RULES_GRIEGO
+REGEX_RULES = REGEX_RULES_GENERAL + REGEX_RULES_CORPUS_ESPECIFICO + REGEX_RULES_GRIEGO
 
 # ---------------------------------------------------------------------------
 # 4. SUSTITUCIONES DE PALABRAS COMPLETAS (contexto latino / académico)
@@ -504,11 +514,11 @@ WORD_REPLACEMENTS = {
     "formulaciOn": "formulación",
     "pequenios": "pequeños",
     "afios": "años",
-    "lingiistas": "lingüstas",
+    "lingiistas": "lingüistas",
     "acentuaciOn": "acentuación",
     "lingiiisticos": "lingüisticos",
     "Filologia": "Filología",
-    "Lingiiistica": "lingüistica",
+    "Lingiiistica": "lingüística",
     "Zeitschrifi": "Zeitschrift",
     "Zeitschnft":  "Zeitschrift",
     "G1otta":      "Glotta",
@@ -653,6 +663,7 @@ def corregir_texto(
     texto: str,
     verbose: bool = False,
     modo: str = "completo",
+    incluir_corpus_especifico: bool = False,
 ) -> str:
     """
     Aplica el pipeline completo de post-procesamiento al texto OCR.
@@ -665,6 +676,10 @@ def corregir_texto(
         - "completo" (defecto): reglas generales + griego + epigrafía.
         - "general": solo reglas generales y epigrafía (sin correcciones griegas).
         - "griego": alias explícito de "completo".
+    incluir_corpus_especifico : bool
+        Si True, aplica también REGEX_RULES_CORPUS_ESPECIFICO (correcciones ad
+        hoc aprendidas de documentos concretos ya procesados). Déjalo en False
+        para un PDF nuevo que no forme parte de ese corpus.
 
     Devuelve
     --------
@@ -681,6 +696,8 @@ def corregir_texto(
     texto = _limpiar_notacion_leiden(texto)                   # antes de segmentar
     texto = _sustituir_latinas_en_contexto_griego(texto)      # antes de segmentar
     texto = _aplicar_regex_rules(texto, REGEX_RULES_GENERAL)
+    if incluir_corpus_especifico:
+        texto = _aplicar_regex_rules(texto, REGEX_RULES_CORPUS_ESPECIFICO)
     texto = _corregir_notacion_epigrafica(texto)
     texto = _segmentar_y_procesar(texto, aplicar_griego=(modo in ("completo", "griego")))
     texto = texto.strip()

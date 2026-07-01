@@ -24,10 +24,8 @@ import pdfplumber
 import pytesseract
 from PIL import Image
 
+import config  # noqa: F401  (aplica TESSERACT_CMD al importarse; evita duplicar la ruta aquí)
 from ocr_postprocess_mejorado import corregir_texto
-
-# Ajusta si Tesseract no está en el PATH
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 # ---------------------------------------------------------------------------
 # Patrón de pie de tabla / figura (multilingüe)
