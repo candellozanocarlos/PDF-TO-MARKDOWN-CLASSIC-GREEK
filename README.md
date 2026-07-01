@@ -247,6 +247,8 @@ Si un documento no tiene tablas reales, es normal y esperable que la aplicación
 - `REGEX_RULES_CORPUS_ESPECIFICO`: correcciones ad hoc aprendidas de documentos concretos ya procesados (nombres propios, fragmentos de palabras muy específicos). No se aplican por defecto; actívalas con `corregir_texto(texto, incluir_corpus_especifico=True)` solo si vas a reprocesar el mismo corpus de siempre.
 - `REGEX_RULES_GRIEGO`: reglas específicas para bloques de texto en griego.
 
+Se puede editar para incluir errores observados en el OCR siguiendo los patrones descritos en el propio documento.
+
 ## Limitaciones conocidas
 
 - La extracción de tablas en PDFs escaneados asume tablas con bordes explícitos (líneas horizontales y verticales visibles); tablas sin bordes no se detectan.
