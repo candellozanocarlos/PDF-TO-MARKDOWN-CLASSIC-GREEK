@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "Si usas este software en tu investigación, por favor cítalo con los siguientes metadatos."
+title: "PDF-TO-MARKDOWN-CLASSIC-GREEK: conversión de PDF a Markdown con OCR y corrección automática para griego clásico"
+type: software
+authors:
+  - family-names: "Candel Lozano"
+    given-names: "Carlos"
+    affiliation: "Universidad de Valladolid"
+repository-code: "https://github.com/candellozanocarlos/PDF-TO-MARKDOWN-CLASSIC-GREEK"
+license: MIT
+version: 1.2.0
+date-released: 2026-07-01
+keywords:
+  - OCR
+  - "griego clásico"
+  - epigrafía
+  - "filología clásica"
+  - "humanidades digitales"
+  - "reconocimiento óptico de caracteres"
+abstract: >-
+  Conjunto de scripts y aplicaciones de escritorio para convertir documentos
+  PDF con texto en griego clásico (y otros idiomas académicos) a formato
+  Markdown mediante reconocimiento óptico de caracteres (OCR), con un
+  postprocesador especializado que corrige errores típicos del OCR en
+  griego politónico y notación epigráfica. Incluye extracción opcional de
+  tablas con detección estricta para evitar falsos positivos.
