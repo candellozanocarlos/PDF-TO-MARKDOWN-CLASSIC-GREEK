@@ -4,5 +4,3 @@ markdown/
 *.md
 !README.md
 
-# Si en el futuro añades un config.local.py con rutas propias, no lo subas:
-config.local.py
