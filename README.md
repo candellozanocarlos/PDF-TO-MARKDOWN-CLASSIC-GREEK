@@ -4,6 +4,10 @@
 
 Convierte un PDF con texto en griego clásico (y/o inglés, francés, italiano, etc.) a un archivo Markdown (`.md`) usando reconocimiento óptico de caracteres (OCR), corrigiendo después los errores típicos del OCR en griego.
 
+> **¿No tienes conocimientos de informática?** Sáltate todo lo de más abajo (clonar el repositorio, terminal, Python...) y ve directamente a la sección **["Para compañeros sin conocimientos de informática (sin Git, sin terminal)"](#para-compañeros-sin-conocimientos-de-informática-sin-git-sin-terminal)**, donde se explica cómo descargar y usar la aplicación con doble clic, sin código de por medio.
+>
+> Eso sí: **tanto si usas el código como si usas la aplicación con doble clic, es obligatorio instalar Tesseract OCR y Poppler aparte** (no van incluidos ni en el repositorio ni dentro del `.exe`/`.app`, son programas externos). No hay forma de saltarse ese paso; los enlaces de descarga y el comando de cada sistema operativo están explicados en esa misma sección.
+
 ## Cómo citar este software
 
 Si usas esta herramienta en tu investigación, cítala como:
