@@ -1,6 +1,32 @@
 # PDF-TO-MARKDOWN-CLASSIC-GREEK
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21104928.svg)](https://doi.org/10.5281/zenodo.21104928)
+
 Convierte un PDF con texto en griego clásico (y/o inglés, francés, italiano, etc.) a un archivo Markdown (`.md`) usando reconocimiento óptico de caracteres (OCR), corrigiendo después los errores típicos del OCR en griego.
+
+## Cómo citar este software
+
+Si usas esta herramienta en tu investigación, cítala como:
+
+> Candel Lozano, C. (2026). *PDF-TO-MARKDOWN-CLASSIC-GREEK: conversión de PDF a Markdown con OCR y corrección automática para griego clásico* (v1.4) [Software]. Zenodo. https://doi.org/10.5281/zenodo.21104928
+
+En formato BibTeX:
+
+```bibtex
+@software{candel_lozano_2026_pdf_to_markdown,
+  author       = {Candel Lozano, Carlos},
+  title        = {{PDF-TO-MARKDOWN-CLASSIC-GREEK: conversión de PDF
+                   a Markdown con OCR y corrección automática para
+                   griego clásico}},
+  year         = 2026,
+  publisher    = {Zenodo},
+  version      = {v1.4},
+  doi          = {10.5281/zenodo.21104928},
+  url          = {https://doi.org/10.5281/zenodo.21104928}
+}
+```
+
+Los metadatos completos (autor, licencia, palabras clave) también están disponibles en el archivo [`CITATION.cff`](./CITATION.cff) de este repositorio, y GitHub los muestra directamente con el botón **"Cite this repository"** en la barra lateral.
 
 ## Por qué Markdown y no otro formato
 
