@@ -29,6 +29,7 @@ from __future__ import annotations
 import os
 import shutil
 import sys
+from typing import Optional
 
 import pytesseract
 
@@ -52,13 +53,58 @@ POPPLER_PATH = os.environ.get("POPPLER_PATH") or (
 pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
 
 
-def verificar_dependencias_externas() -> None:
-    """Comprueba que Tesseract está localizable y avisa con un mensaje claro
-    si no lo está, en vez de dejar que falle más adelante con un error críptico."""
+def _localizar_poppler() -> Optional[str]:
+    """
+    Devuelve la ruta al ejecutable 'pdftoppm' de Poppler (el que usa
+    pdf2image), buscando primero en POPPLER_PATH y si no en el PATH del
+    sistema. None si no se encuentra en ningún sitio.
+    """
+    nombre = "pdftoppm.exe" if os.name == "nt" else "pdftoppm"
+    if POPPLER_PATH:
+        candidato = os.path.join(POPPLER_PATH, nombre)
+        if os.path.isfile(candidato):
+            return candidato
+    return shutil.which("pdftoppm")
+
+
+def verificar_dependencias_externas() -> list[str]:
+    """
+    Comprueba que Tesseract y Poppler están localizables. Devuelve una lista
+    de mensajes de aviso (vacía si todo está en orden).
+
+    Importante: esta función NO imprime nada por su cuenta. En las
+    aplicaciones de escritorio empaquetadas con PyInstaller en modo
+    --windowed no hay consola visible, así que un aviso impreso por
+    print()/stderr se pierde sin que nadie lo vea. Quien llame a esta
+    función debe mostrar los mensajes devueltos por su propia interfaz
+    (log de la GUI, print() en el caso del CLI, etc.).
+    """
+    avisos: list[str] = []
+
     if not shutil.which(TESSERACT_CMD) and not os.path.isfile(TESSERACT_CMD):
-        print(
-            f"[config] AVISO: no se encuentra el ejecutable de Tesseract en "
-            f"'{TESSERACT_CMD}'. Define la variable de entorno TESSERACT_CMD "
-            f"o instala Tesseract OCR.",
-            file=sys.stderr,
+        if sys.platform == "darwin":
+            instrucciones = "Instálalo con Homebrew: brew install tesseract tesseract-lang"
+        elif os.name == "nt":
+            instrucciones = (
+                "Instálalo desde https://github.com/UB-Mannheim/tesseract/wiki "
+                "y define la variable de entorno TESSERACT_CMD con la ruta al .exe"
+            )
+        else:
+            instrucciones = "Instálalo con el gestor de paquetes de tu sistema (p. ej. apt install tesseract-ocr)"
+        avisos.append(
+            f"No se encuentra Tesseract OCR (ruta probada: '{TESSERACT_CMD}'). {instrucciones}"
         )
+
+    if _localizar_poppler() is None:
+        if sys.platform == "darwin":
+            instrucciones = "Instálalo con Homebrew: brew install poppler"
+        elif os.name == "nt":
+            instrucciones = (
+                "Descárgalo de https://github.com/oschwartz10612/poppler-windows/releases "
+                "y define la variable de entorno POPPLER_PATH con la carpeta 'bin' descomprimida"
+            )
+        else:
+            instrucciones = "Instálalo con el gestor de paquetes de tu sistema (p. ej. apt install poppler-utils)"
+        avisos.append(f"No se encuentra Poppler (necesario para leer el PDF). {instrucciones}")
+
+    return avisos

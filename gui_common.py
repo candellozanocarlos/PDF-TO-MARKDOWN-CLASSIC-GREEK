@@ -148,8 +148,18 @@ class MotorConversion:
         dpi: int,
     ) -> None:
         try:
-            self.cola.put(("log", f"Comprobando dependencias..."))
-            config.verificar_dependencias_externas()
+            self.cola.put(("log", "Comprobando dependencias externas (Tesseract, Poppler)..."))
+            avisos = config.verificar_dependencias_externas()
+            if avisos:
+                for aviso in avisos:
+                    self.cola.put(("log", f"⚠ {aviso}"))
+                self.cola.put((
+                    "error",
+                    "Faltan programas externos necesarios (ver avisos arriba). "
+                    "Instálalos y vuelve a intentarlo; esta aplicación no puede "
+                    "convertir el PDF sin ellos.",
+                ))
+                return
 
             output_dir.mkdir(parents=True, exist_ok=True)
 

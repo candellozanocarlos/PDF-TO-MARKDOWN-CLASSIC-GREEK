@@ -98,12 +98,29 @@ Si vas a compartir esta herramienta con alguien que no sabe qué es Git ni una t
 
 ### Lo que tiene que hacer la persona que lo use (nada de código)
 
-1. Entra en la página de **Releases** del repositorio (enlace fijado en la barra lateral derecha de GitHub, o en `.../releases`).
-2. Descarga el `.exe` correspondiente ("PDF a Markdown.exe" para texto, o "PDF a Markdown (con tablas).exe" si también necesita tablas).
-3. Doble clic para abrirlo. Windows probablemente muestre un aviso de SmartScreen ("Windows protegió tu PC") porque el `.exe` no está firmado digitalmente; hay que pulsar **"Más información"** y luego **"Ejecutar de todos modos"**. Esto es normal en programas de un solo desarrollador sin certificado de pago, no significa que el programa sea inseguro.
-4. Usa la ventana con normalidad: seleccionar PDF, carpeta de salida, idiomas, y pulsar "Convertir".
+**Requisito previo, una sola vez:** aunque el `.exe`/`.app` lleva empaquetado todo el código Python, **no lleva Tesseract ni Poppler** (son programas externos, no bibliotecas de Python, así que PyInstaller no los incluye). Hay que instalarlos aparte una vez:
 
-No necesita instalar Python, Tesseract, Poppler ni nada más: todo va empaquetado dentro del `.exe`.
+- **Windows:**
+  1. Tesseract OCR: descargar el instalador desde [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki) y ejecutarlo (dejar las opciones por defecto; asegúrate de marcar el paquete de idioma griego, "Greek", si el instalador lo ofrece como opción).
+  2. Poppler: descargar el `.zip` desde [oschwartz10612/poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases), descomprimirlo en, por ejemplo, `C:\poppler`.
+  3. Si la aplicación no los encuentra automáticamente, definir las variables de entorno `TESSERACT_CMD` y `POPPLER_PATH` (Panel de control → Sistema → Configuración avanzada → Variables de entorno) apuntando a la ruta del `.exe` de Tesseract y a la carpeta `bin` de Poppler respectivamente.
+
+- **macOS:** con [Homebrew](https://brew.sh) instalado, abrir la aplicación Terminal (viene con macOS) y ejecutar una sola vez:
+  ```bash
+  brew install tesseract tesseract-lang poppler
+  ```
+  (`tesseract-lang` incluye el paquete de griego clásico y otros idiomas; sin él, Tesseract solo reconoce inglés.)
+
+Si te falta alguno de los dos, la aplicación lo detecta al intentar convertir y te lo dice claramente en el propio registro de la ventana (con instrucciones de instalación), en vez de fallar con un error críptico.
+
+**Uso normal, una vez instalado lo anterior:**
+
+1. Entra en la página de **Releases** del repositorio (enlace fijado en la barra lateral derecha de GitHub, o en `.../releases`).
+2. Descarga el archivo correspondiente a tu sistema y a lo que necesites: `.exe` en Windows, `.zip` con un `.app` dentro en macOS ("PDF a Markdown" para texto, o "PDF a Markdown (con tablas)" si también necesita tablas).
+3. Ábrelo:
+   - **Windows:** doble clic. Probablemente aparezca un aviso de SmartScreen ("Windows protegió tu PC") porque el `.exe` no está firmado digitalmente; pulsa **"Más información"** → **"Ejecutar de todos modos"**. Esto es normal en programas de un solo desarrollador sin certificado de pago, no significa que el programa sea inseguro.
+   - **macOS:** descomprime el `.zip`, y para el primer uso haz clic derecho sobre el `.app` → "Abrir" (en vez de doble clic normal), para saltar el aviso de "desarrollador no verificado". A partir de ahí, doble clic funciona con normalidad.
+4. Usa la ventana con normalidad: seleccionar PDF, carpeta de salida, idiomas, y pulsar "Convertir".
 
 ### Lo que tienes que hacer tú una vez (para dejar el .exe publicado)
 

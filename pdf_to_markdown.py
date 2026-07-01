@@ -113,7 +113,16 @@ def abrir_archivo(ruta: Path) -> None:
 
 def main() -> None:
     args = construir_parser().parse_args()
-    config.verificar_dependencias_externas()
+    avisos = config.verificar_dependencias_externas()
+    for aviso in avisos:
+        print(f"[error] {aviso}", file=sys.stderr)
+    if avisos:
+        print(
+            "\nFaltan programas externos necesarios para continuar. Instálalos "
+            "y vuelve a intentarlo.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     if not args.pdf.is_file():
         print(f"[error] No se encuentra el PDF: {args.pdf}", file=sys.stderr)
