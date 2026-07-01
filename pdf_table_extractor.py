@@ -1,15 +1,15 @@
 """
 pdf_table_extractor.py
-----------------------
-Extracción de tablas para dos tipos de PDF:
-  - Digital (texto seleccionable): pdfplumber detecta la estructura directamente.
-  - Escaneado (imagen): OpenCV localiza las celdas, Tesseract las lee una a una.
+-----------------------
+Table extraction for two types of PDF:
+  - Digital (selectable text): pdfplumber detects the structure directly.
+  - Scanned (image): OpenCV locates the cells, Tesseract reads them one by one.
 
-Uso rápido:
-    from pdf_table_extractor import extraer_tablas, detectar_tipo_pdf
+Quick usage:
+    from pdf_table_extractor import extract_tables, detect_pdf_type
 
-    tipo = detectar_tipo_pdf("articulo.pdf")            # "digital" o "escaneado"
-    tablas = extraer_tablas("articulo.pdf", imagenes)   # {num_pag: [md, ...]}
+    pdf_type = detect_pdf_type("article.pdf")            # "digital" or "scanned"
+    tables = extract_tables("article.pdf", images)        # {page_num: [md, ...]}
 """
 
 from __future__ import annotations
@@ -24,112 +24,113 @@ import pdfplumber
 import pytesseract
 from PIL import Image
 
-import config  # noqa: F401  (aplica TESSERACT_CMD al importarse; evita duplicar la ruta aquí)
-from ocr_postprocess_mejorado import corregir_texto
+import config  # noqa: F401  (applies TESSERACT_CMD on import; avoids duplicating the path here)
+from ocr_postprocess import fix_text
 
-# Coincide con una celda que es solo un número (con o sin decimales). Estas
-# celdas NO deben pasar por el pipeline general de corregir_texto(), porque
-# incluye una regla pensada para eliminar números de página sueltos
-# (patrón "^\s*\d{1,4}\s*$") que, aplicada al contenido de una celda,
-# borraría cualquier dato puramente numérico de la tabla (edades, años,
-# cantidades...). Ese contexto (texto corrido de página vs. celda aislada)
-# es justamente la diferencia que la regla no puede distinguir por sí sola.
-_CELDA_SOLO_NUMERO = re.compile(r"^\s*\d+(?:[.,]\d+)?\s*$")
+# Matches a cell that is only a number (with or without decimals). These
+# cells must NOT go through the general fix_text() pipeline, because it
+# includes a rule meant to remove stray page numbers (pattern
+# "^\s*\d{1,4}\s*$") which, applied to a cell's content, would delete any
+# purely numeric table data (ages, years, quantities...). That context
+# (running page text vs. an isolated cell) is exactly the difference the
+# rule cannot tell apart on its own.
+_NUMBER_ONLY_CELL = re.compile(r"^\s*\d+(?:[.,]\d+)?\s*$")
 
 
-def _corregir_celda(texto: Optional[str]) -> str:
-    """Aplica corregir_texto() a una celda, salvo que sea un número aislado."""
-    if not texto:
+def _fix_cell(text: Optional[str]) -> str:
+    """Applies fix_text() to a cell, unless it is an isolated number."""
+    if not text:
         return ""
-    if _CELDA_SOLO_NUMERO.match(texto):
-        return texto.strip()
-    return corregir_texto(texto)
+    if _NUMBER_ONLY_CELL.match(text):
+        return text.strip()
+    return fix_text(text)
 
 # ---------------------------------------------------------------------------
-# Patrón de pie de TABLA (multilingüe). Solo se busca una tabla si la página
-# contiene uno de estos pies. Los pies de figura ("Figure", "Fig.", "Abb.",
-# "Tav.") se excluyen deliberadamente: una figura no es una tabla, e incluirlos
-# generaba falsos positivos (el extractor intentaba leer una tabla en páginas
-# que en realidad tenían un mapa o una fotografía).
+# TABLE caption pattern (multilingual). A table is only searched for if the
+# page contains one of these captions. Figure captions ("Figure", "Fig.",
+# "Abb.", "Tav.") are deliberately excluded: a figure is not a table, and
+# including them caused false positives (the extractor would try to read a
+# table on pages that actually contained a map or a photograph).
 # ---------------------------------------------------------------------------
 CAPTION_RE = re.compile(
     r"^\s*(?:Table|Tab\.?|Tabla|Cuadro|Tableau)\s*\.?\s*\d+",
     re.IGNORECASE | re.MULTILINE,
 )
 
-# Patrón de pie de figura, mantenido aparte por si se quiere usar en el futuro
-# para un extractor de figuras independiente. No se usa en este módulo.
-CAPTION_RE_FIGURA = re.compile(
+# Figure caption pattern, kept separate in case it is needed in the future
+# for a standalone figure extractor. Not used in this module.
+CAPTION_RE_FIGURE = re.compile(
     r"^\s*(?:Figure|Fig\.?|Abbildung|Abb\.?|Tav\.?)\s*\.?\s*\d+",
     re.IGNORECASE | re.MULTILINE,
 )
 
 # ---------------------------------------------------------------------------
-# Utilidad compartida: lista-de-listas → tabla Markdown
+# Shared utility: list-of-lists → Markdown table
 # ---------------------------------------------------------------------------
 
-def _tabla_a_markdown(filas: list[list[str]]) -> str:
-    if not filas:
+def _table_to_markdown(rows: list[list[str]]) -> str:
+    if not rows:
         return ""
-    # Normalizar celdas
-    filas = [[str(c or "").strip() for c in fila] for fila in filas]
-    ncols = max(len(f) for f in filas)
-    filas = [f + [""] * (ncols - len(f)) for f in filas]
+    # Normalize cells
+    rows = [[str(c or "").strip() for c in row] for row in rows]
+    ncols = max(len(r) for r in rows)
+    rows = [r + [""] * (ncols - len(r)) for r in rows]
 
-    anchos = [max(len(f[c]) for f in filas) or 1 for c in range(ncols)]
+    widths = [max(len(r[c]) for r in rows) or 1 for c in range(ncols)]
 
-    def _fila_md(fila: list[str]) -> str:
-        return "| " + " | ".join(c.ljust(anchos[i]) for i, c in enumerate(fila)) + " |"
+    def _row_md(row: list[str]) -> str:
+        return "| " + " | ".join(c.ljust(widths[i]) for i, c in enumerate(row)) + " |"
 
-    sep = "| " + " | ".join("-" * a for a in anchos) + " |"
-    return "\n".join([_fila_md(filas[0]), sep] + [_fila_md(f) for f in filas[1:]])
+    sep = "| " + " | ".join("-" * a for a in widths) + " |"
+    return "\n".join([_row_md(rows[0]), sep] + [_row_md(r) for r in rows[1:]])
 
 
 # ---------------------------------------------------------------------------
-# Detección automática del tipo de PDF
+# Automatic PDF type detection
 # ---------------------------------------------------------------------------
 
-def detectar_tipo_pdf(pdf_path: str, umbral_chars: int = 80) -> str:
+def detect_pdf_type(pdf_path: str, char_threshold: int = 80) -> str:
     """
-    Lee el texto de la primera página con pdfplumber.
-    Si obtiene al menos `umbral_chars` caracteres, el PDF es digital;
-    si no, es escaneado (las páginas son imágenes).
+    Reads the text of the first page with pdfplumber.
+    If it gets at least `char_threshold` characters, the PDF is digital;
+    otherwise, it is scanned (the pages are images).
     """
     with pdfplumber.open(pdf_path) as pdf:
-        texto = pdf.pages[0].extract_text() or ""
-    tipo = "digital" if len(texto.strip()) >= umbral_chars else "escaneado"
-    print(f"[table_extractor] Tipo detectado: {tipo}  "
-          f"({len(texto.strip())} caracteres en pág. 1)")
-    return tipo
+        text = pdf.pages[0].extract_text() or ""
+    pdf_type = "digital" if len(text.strip()) >= char_threshold else "scanned"
+    print(f"[table_extractor] Detected type: {pdf_type}  "
+          f"({len(text.strip())} characters on page 1)")
+    return pdf_type
 
 
 # ===========================================================================
-# FLUJO 1 — PDF DIGITAL (pdfplumber)
+# FLOW 1 — DIGITAL PDF (pdfplumber)
 # ===========================================================================
 
-def extraer_tablas_digital(
+def extract_tables_digital(
     pdf_path: str,
-    paginas: Optional[list[int]] = None,
-    aplicar_postproc: bool = True,
+    pages: Optional[list[int]] = None,
+    apply_postprocessing: bool = True,
 ) -> dict[int, list[str]]:
     """
-    Extrae tablas de un PDF con texto seleccionable.
+    Extracts tables from a PDF with selectable text.
 
-    Parámetros
+    Parameters
     ----------
-    pdf_path        : ruta al PDF.
-    paginas         : lista de índices 0-based; None = todo el documento.
-    aplicar_postproc: pasa cada celda por corregir_texto().
+    pdf_path             : path to the PDF.
+    pages                : list of 0-based indices; None = whole document.
+    apply_postprocessing : passes each cell through fix_text().
 
-    Devuelve
-    --------
-    {num_pagina_1based: [tabla_markdown, ...]}
+    Returns
+    -------
+    {page_num_1based: [markdown_table, ...]}
     """
-    resultado: dict[int, list[str]] = {}
+    result: dict[int, list[str]] = {}
 
-    # Bordes explícitos — única estrategia activa (la alineación de texto generaba
-    # demasiados falsos positivos en listas, bibliografías y texto en columnas).
-    cfg_lines = {
+    # Explicit borders — the only active strategy (text-alignment detection
+    # produced too many false positives in lists, bibliographies, and
+    # column text).
+    line_settings = {
         "vertical_strategy": "lines",
         "horizontal_strategy": "lines",
         "snap_tolerance": 5,
@@ -139,514 +140,515 @@ def extraer_tablas_digital(
         "min_words_horizontal": 1,
     }
 
-    def _es_tabla_real(tabla: list) -> bool:
+    def _is_real_table(table: list) -> bool:
         """
-        Descarta estructuras que no son tablas de verdad. Criterios (todos
-        deben cumplirse):
-          - Al menos 3 filas y al menos 2 columnas en la fila más frecuente.
-          - >= 75 % de las filas tienen ese mismo número de columnas
-            (antes 60 %; un 60 % dejaba pasar recuadros irregulares).
-          - >= 50 % de las celdas tienen contenido no vacío (descarta grids
-            de líneas detectadas sobre una zona mayoritariamente en blanco,
-            p. ej. el margen de una página o una caja decorativa).
+        Discards structures that are not real tables. Criteria (all must
+        be met):
+          - At least 3 rows and at least 2 columns in the most common row.
+          - >= 75% of rows have that same number of columns (was 60%; 60%
+            let irregular boxes slip through).
+          - >= 50% of cells have non-empty content (discards grids of
+            detected lines over a mostly blank area, e.g. a page margin or
+            a decorative box).
         """
-        if not tabla or len(tabla) < 3:
+        if not table or len(table) < 3:
             return False
-        n_cols = [len(fila) for fila in tabla]
+        n_cols = [len(row) for row in table]
         if max(n_cols) < 2:
             return False
-        modo = max(set(n_cols), key=n_cols.count)
-        if modo < 2:
+        mode_ncols = max(set(n_cols), key=n_cols.count)
+        if mode_ncols < 2:
             return False
-        consistencia = sum(1 for n in n_cols if n == modo) / len(tabla)
-        if consistencia < 0.75:
+        consistency = sum(1 for n in n_cols if n == mode_ncols) / len(table)
+        if consistency < 0.75:
             return False
-        total_celdas = sum(len(fila) for fila in tabla)
-        celdas_no_vacias = sum(
-            1 for fila in tabla for c in fila if c and str(c).strip()
+        total_cells = sum(len(row) for row in table)
+        non_empty_cells = sum(
+            1 for row in table for c in row if c and str(c).strip()
         )
-        return total_celdas > 0 and (celdas_no_vacias / total_celdas) >= 0.5
+        return total_cells > 0 and (non_empty_cells / total_cells) >= 0.5
 
     with pdfplumber.open(pdf_path) as pdf:
-        indices = list(paginas) if paginas is not None else list(range(len(pdf.pages)))
+        indices = list(pages) if pages is not None else list(range(len(pdf.pages)))
 
-        # Pre-escaneo: páginas con caption propio + página siguiente
-        # (el caption puede estar encima de la tabla, al final de la pág anterior)
-        con_tabla: set[int] = set()
+        # Pre-scan: pages with their own caption + the following page
+        # (the caption may sit above the table, at the end of the previous page)
+        has_table: set[int] = set()
         for i in indices:
-            texto = pdf.pages[i].extract_text() or ""
-            if CAPTION_RE.search(texto):
-                con_tabla.add(i)        # caption en la misma página
-                con_tabla.add(i + 1)    # tabla puede empezar en la siguiente
+            text = pdf.pages[i].extract_text() or ""
+            if CAPTION_RE.search(text):
+                has_table.add(i)        # caption on the same page
+                has_table.add(i + 1)    # table may start on the next page
 
         for i in indices:
-            if i not in con_tabla:
+            if i not in has_table:
                 continue
 
-            pagina = pdf.pages[i]
-            tablas = pagina.extract_tables(table_settings=cfg_lines)
+            page = pdf.pages[i]
+            tables = page.extract_tables(table_settings=line_settings)
 
-            mds = []
-            for tabla in tablas:
-                if not _es_tabla_real(tabla):
+            markdown_tables = []
+            for table in tables:
+                if not _is_real_table(table):
                     continue
-                if aplicar_postproc:
-                    tabla = [
-                        [_corregir_celda(c) for c in fila]
-                        for fila in tabla
+                if apply_postprocessing:
+                    table = [
+                        [_fix_cell(c) for c in row]
+                        for row in table
                     ]
-                md = _tabla_a_markdown(tabla)
+                md = _table_to_markdown(table)
                 if md:
-                    mds.append(md)
+                    markdown_tables.append(md)
 
-            if mds:
-                num_pagina = i + 1
-                resultado[num_pagina] = mds
-                print(f"[table_extractor] Pág. {num_pagina}: {len(mds)} tabla(s) extraída(s)")
+            if markdown_tables:
+                page_number = i + 1
+                result[page_number] = markdown_tables
+                print(f"[table_extractor] Page {page_number}: {len(markdown_tables)} table(s) extracted")
 
-    return resultado
+    return result
 
 
 # ===========================================================================
-# FLUJO 2 — PDF ESCANEADO (OpenCV + Tesseract)
+# FLOW 2 — SCANNED PDF (OpenCV + Tesseract)
 # ===========================================================================
 
-# ── 2a. Pre-procesamiento de imagen ─────────────────────────────────────────
+# ── 2a. Image pre-processing ─────────────────────────────────────────────
 
-def _preprocesar(img_gray: np.ndarray) -> np.ndarray:
-    """Binarización Otsu + eliminación de ruido puntual."""
+def _preprocess(img_gray: np.ndarray) -> np.ndarray:
+    """Otsu binarization + speckle noise removal."""
     _, bin_inv = cv2.threshold(img_gray, 0, 255,
                                cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-    limpia = cv2.morphologyEx(bin_inv, cv2.MORPH_OPEN, kernel)
-    return cv2.bitwise_not(limpia)
+    cleaned = cv2.morphologyEx(bin_inv, cv2.MORPH_OPEN, kernel)
+    return cv2.bitwise_not(cleaned)
 
 
-# ── 2b. Detección de la región de tabla ─────────────────────────────────────
+# ── 2b. Table region detection ───────────────────────────────────────────
 
-def _separar_lineas(img_gray: np.ndarray):
+def _split_lines(img_gray: np.ndarray):
     """
-    Devuelve (lineas_h, lineas_v) como máscaras binarias.
-    Kernels grandes (≥ 1/4 de la dimensión) para que solo pasen
-    los bordes reales de tabla y no subrayados ni separadores cortos.
+    Returns (h_lines, v_lines) as binary masks.
+    Large kernels (>= 1/4 of the dimension) so that only real table
+    borders pass through, not underlines or short separators.
     """
     h, w = img_gray.shape
-    _, binaria = cv2.threshold(img_gray, 0, 255,
+    _, binary = cv2.threshold(img_gray, 0, 255,
                                cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
     k_h = cv2.getStructuringElement(cv2.MORPH_RECT, (max(w // 4, 60), 1))
-    lineas_h = cv2.morphologyEx(binaria, cv2.MORPH_OPEN, k_h)
+    h_lines = cv2.morphologyEx(binary, cv2.MORPH_OPEN, k_h)
 
     k_v = cv2.getStructuringElement(cv2.MORPH_RECT, (1, max(h // 4, 60)))
-    lineas_v = cv2.morphologyEx(binaria, cv2.MORPH_OPEN, k_v)
+    v_lines = cv2.morphologyEx(binary, cv2.MORPH_OPEN, k_v)
 
-    return lineas_h, lineas_v
+    return h_lines, v_lines
 
 
-def _bbox_tabla(img_gray: np.ndarray) -> Optional[tuple[int, int, int, int]]:
+def _table_bbox(img_gray: np.ndarray) -> Optional[tuple[int, int, int, int]]:
     """
-    Devuelve (x, y, w, h) de la tabla, o None si no hay tabla.
+    Returns (x, y, w, h) of the table, or None if there is no table.
 
-    Estrategia: una tabla real tiene intersecciones entre líneas horizontales
-    y verticales. Buscamos el contorno del área de líneas que contiene más
-    intersecciones. Exigimos:
-      - Al menos 9 intersecciones (equivalente a un grid mínimo de 3x3
-        celdas; antes se aceptaban 4, es decir un simple 2x2, demasiado
-        permisivo y fácil de confundir con un recuadro o un logo con marco).
-      - El área del bbox debe ser al menos un 2 % de la imagen completa,
-        para descartar recuadros pequeños (sellos, cabeceras con marco,
-        iconos) que no son tablas de datos.
+    Strategy: a real table has intersections between horizontal and
+    vertical lines. We look for the contour of the line area that
+    contains the most intersections. We require:
+      - At least 9 intersections (equivalent to a minimum 3x3 cell grid;
+        previously 4 were accepted, i.e. a plain 2x2, which was too
+        permissive and easy to confuse with a box or a logo with a frame).
+      - The bbox area must be at least 2% of the full image, to discard
+        small boxes (stamps, framed headers, icons) that are not data
+        tables.
     """
     h_total, w_total = img_gray.shape
-    lineas_h, lineas_v = _separar_lineas(img_gray)
+    h_lines, v_lines = _split_lines(img_gray)
 
-    # Píxeles en los que coinciden línea horizontal Y vertical → intersecciones
-    intersecciones = cv2.bitwise_and(lineas_h, lineas_v)
-    if cv2.countNonZero(intersecciones) < 9:
+    # Pixels where a horizontal line AND a vertical line coincide → intersections
+    intersections = cv2.bitwise_and(h_lines, v_lines)
+    if cv2.countNonZero(intersections) < 9:
         return None
 
-    # Un simple recuadro/marco (sin líneas internas) tiene igualmente 2
-    # componentes horizontales (borde superior + inferior) y 2 verticales
-    # (borde izquierdo + derecho), así que un umbral de ">= 2" no lo
-    # distingue de una tabla real. El grid mínimo aceptado es 3 filas x 2
-    # columnas, que requiere 4 líneas horizontales (bordes + 2 divisorias
-    # internas) y 3 verticales (bordes + 1 divisoria interna); exigimos
-    # exactamente eso como mínimo.
-    n_h = cv2.connectedComponents(lineas_h)[0] - 1  # -1: descuenta el fondo
-    n_v = cv2.connectedComponents(lineas_v)[0] - 1
+    # A plain box/frame (with no internal lines) also has 2 horizontal
+    # components (top + bottom border) and 2 vertical ones (left + right
+    # border), so a ">= 2" threshold does not distinguish it from a real
+    # table. The minimum accepted grid is 3 rows x 2 columns, which
+    # requires 4 horizontal lines (borders + 2 internal dividers) and 3
+    # vertical lines (borders + 1 internal divider); we require exactly
+    # that as a minimum.
+    n_h = cv2.connectedComponents(h_lines)[0] - 1  # -1: discounts the background
+    n_v = cv2.connectedComponents(v_lines)[0] - 1
     if n_h < 4 or n_v < 3:
         return None
 
-    # Máscara completa de líneas; dilatar para conectar los bordes de cada celda
-    mascara = cv2.add(lineas_h, lineas_v)
+    # Full line mask; dilate to connect the borders of each cell
+    mask = cv2.add(h_lines, v_lines)
     k = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-    mascara = cv2.dilate(mascara, k, iterations=3)
+    mask = cv2.dilate(mask, k, iterations=3)
 
-    contornos, _ = cv2.findContours(mascara, cv2.RETR_EXTERNAL,
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
                                     cv2.CHAIN_APPROX_SIMPLE)
-    if not contornos:
+    if not contours:
         return None
 
-    # Escoger el contorno cuyo interior contiene más intersecciones
-    mejor_bbox = None
-    mejor_n = 0
-    for c in contornos:
+    # Pick the contour whose interior contains the most intersections
+    best_bbox = None
+    best_n = 0
+    for c in contours:
         x, y, cw, ch = cv2.boundingRect(c)
-        n = cv2.countNonZero(intersecciones[y:y+ch, x:x+cw])
-        if n > mejor_n:
-            mejor_n = n
-            mejor_bbox = (x, y, cw, ch)
+        n = cv2.countNonZero(intersections[y:y+ch, x:x+cw])
+        if n > best_n:
+            best_n = n
+            best_bbox = (x, y, cw, ch)
 
-    if mejor_bbox is None or mejor_n < 9:
+    if best_bbox is None or best_n < 9:
         return None
 
-    _, _, bw, bh = mejor_bbox
+    _, _, bw, bh = best_bbox
     area_rel = (bw * bh) / (w_total * h_total)
     if area_rel < 0.02:
         return None
 
-    return mejor_bbox
+    return best_bbox
 
 
-# ── 2c. Detección y agrupación de celdas ────────────────────────────────────
+# ── 2c. Cell detection and grouping ──────────────────────────────────────
 
-def _posiciones_lineas(mascara_linea: np.ndarray, eje: str) -> list[int]:
+def _line_positions(line_mask: np.ndarray, axis: str) -> list[int]:
     """
-    Localiza la posición (coordenada central) de cada línea de tabla dentro
-    de una máscara binaria de líneas horizontales o verticales.
+    Locates the position (center coordinate) of each table line within a
+    binary mask of horizontal or vertical lines.
 
-    Exige que la línea cubra al menos el 60 % de la dimensión perpendicular
-    para contarla como línea real de la rejilla (un trazo corto de ruido, o
-    un subrayado suelto, no llega a ese umbral y se descarta).
+    Requires the line to cover at least 60% of the perpendicular dimension
+    to be counted as a real grid line (a short noise stroke, or a loose
+    underline, does not reach that threshold and is discarded).
 
-    Parámetros
+    Parameters
     ----------
-    eje : 'h' para líneas horizontales (se devuelven posiciones Y),
-          'v' para líneas verticales (se devuelven posiciones X).
+    axis : 'h' for horizontal lines (Y positions are returned),
+           'v' for vertical lines (X positions are returned).
     """
-    if eje == "h":
-        perfil = (mascara_linea > 0).sum(axis=1)  # nº de píxeles de línea por fila
-        dim_perpendicular = mascara_linea.shape[1]
+    if axis == "h":
+        profile = (line_mask > 0).sum(axis=1)  # number of line pixels per row
+        perpendicular_dim = line_mask.shape[1]
     else:
-        perfil = (mascara_linea > 0).sum(axis=0)  # nº de píxeles de línea por columna
-        dim_perpendicular = mascara_linea.shape[0]
+        profile = (line_mask > 0).sum(axis=0)  # number of line pixels per column
+        perpendicular_dim = line_mask.shape[0]
 
-    umbral = dim_perpendicular * 0.6
-    activos = perfil >= umbral
+    threshold = perpendicular_dim * 0.6
+    active = profile >= threshold
 
-    posiciones = []
-    en_racha = False
-    inicio = 0
-    for i, val in enumerate(activos):
-        if val and not en_racha:
-            en_racha, inicio = True, i
-        elif not val and en_racha:
-            en_racha = False
-            posiciones.append((inicio + i - 1) // 2)
-    if en_racha:
-        posiciones.append((inicio + len(activos) - 1) // 2)
+    positions = []
+    in_run = False
+    start = 0
+    for i, val in enumerate(active):
+        if val and not in_run:
+            in_run, start = True, i
+        elif not val and in_run:
+            in_run = False
+            positions.append((start + i - 1) // 2)
+    if in_run:
+        positions.append((start + len(active) - 1) // 2)
 
-    return posiciones
+    return positions
 
 
-def _detectar_celdas(roi: np.ndarray) -> list[tuple[int, int, int, int]]:
+def _detect_cells(roi: np.ndarray) -> list[tuple[int, int, int, int]]:
     """
-    Reconstruye la rejilla de la tabla a partir de las posiciones reales de
-    las líneas horizontales y verticales, y devuelve cada celda como
-    (x, y, w, h), ordenadas por fila y luego por columna.
+    Reconstructs the table grid from the actual positions of the
+    horizontal and vertical lines, and returns each cell as (x, y, w, h),
+    ordered by row and then by column.
 
-    Este método (basado en el perfil de línea, no en contornos) es más
-    robusto que localizar "huecos" entre líneas por contornos: no depende de
-    que la rejilla esté perfectamente cerrada en los píxeles del borde del
-    recorte, que es una fuente habitual de fallos con OpenCV cuando la
-    tabla ocupa el recorte al límite.
+    This method (based on the line profile, not on contours) is more
+    robust than locating "gaps" between lines via contours: it does not
+    depend on the grid being perfectly closed at the crop's border pixels,
+    which is a common source of failures with OpenCV when the table
+    occupies the crop right up to its edge.
     """
     h, w = roi.shape
-    lineas_h, lineas_v = _separar_lineas(roi)
+    h_lines, v_lines = _split_lines(roi)
 
-    ys = _posiciones_lineas(lineas_h, "h")
-    xs = _posiciones_lineas(lineas_v, "v")
+    ys = _line_positions(h_lines, "h")
+    xs = _line_positions(v_lines, "v")
 
-    margen = 3   # evita capturar los propios píxeles de la línea en el recorte de celda
-    min_lado = 10  # celdas más estrechas que esto se consideran ruido, no datos
+    margin = 3    # avoids capturing the line pixels themselves in the cell crop
+    min_side = 10  # cells narrower than this are considered noise, not data
 
-    celdas: list[tuple[int, int, int, int]] = []
+    cells: list[tuple[int, int, int, int]] = []
     for i in range(len(ys) - 1):
         y1, y2 = ys[i], ys[i + 1]
-        if (y2 - y1) < min_lado:
+        if (y2 - y1) < min_side:
             continue
         for j in range(len(xs) - 1):
             x1, x2 = xs[j], xs[j + 1]
-            if (x2 - x1) < min_lado:
+            if (x2 - x1) < min_side:
                 continue
-            cx, cy = x1 + margen, y1 + margen
-            cw, ch = max((x2 - x1) - 2 * margen, 1), max((y2 - y1) - 2 * margen, 1)
-            celdas.append((cx, cy, cw, ch))
+            cx, cy = x1 + margin, y1 + margin
+            cw, ch = max((x2 - x1) - 2 * margin, 1), max((y2 - y1) - 2 * margin, 1)
+            cells.append((cx, cy, cw, ch))
 
-    return celdas
+    return cells
 
 
-def _agrupar_filas(celdas: list[tuple], tolerancia_pct: float = 0.025,
-                   alto_roi: int = 100) -> list[list[tuple]]:
-    """Agrupa celdas en filas usando tolerancia relativa al alto del ROI."""
-    if not celdas:
+def _group_rows(cells: list[tuple], tolerance_pct: float = 0.025,
+                roi_height: int = 100) -> list[list[tuple]]:
+    """Groups cells into rows using a tolerance relative to the ROI height."""
+    if not cells:
         return []
-    tolerancia = max(int(alto_roi * tolerancia_pct), 8)
-    filas: list[list[tuple]] = []
-    fila_actual = [celdas[0]]
-    y_ref = celdas[0][1]
+    tolerance = max(int(roi_height * tolerance_pct), 8)
+    rows: list[list[tuple]] = []
+    current_row = [cells[0]]
+    y_ref = cells[0][1]
 
-    for celda in celdas[1:]:
-        if abs(celda[1] - y_ref) <= tolerancia:
-            fila_actual.append(celda)
+    for cell in cells[1:]:
+        if abs(cell[1] - y_ref) <= tolerance:
+            current_row.append(cell)
         else:
-            filas.append(sorted(fila_actual, key=lambda c: c[0]))
-            fila_actual = [celda]
-            y_ref = celda[1]
-    filas.append(sorted(fila_actual, key=lambda c: c[0]))
-    return filas
+            rows.append(sorted(current_row, key=lambda c: c[0]))
+            current_row = [cell]
+            y_ref = cell[1]
+    rows.append(sorted(current_row, key=lambda c: c[0]))
+    return rows
 
 
-def _es_grid_valido(filas: list[list]) -> bool:
+def _is_valid_grid(rows: list[list]) -> bool:
     """
-    Verifica que las filas formen un grid coherente. Todos deben cumplirse:
-    - Al menos 3 filas y 2 columnas (antes 2 filas: un grid 2xN es demasiado
-      fácil de producir con ruido de OCR o líneas mal detectadas).
-    - >= 80 % de las filas tienen el mismo número de columnas (antes 70 %).
+    Checks that the rows form a coherent grid. All must be met:
+    - At least 3 rows and 2 columns (was 2 rows: a 2xN grid is too easy to
+      produce from OCR noise or poorly detected lines).
+    - >= 80% of rows have the same number of columns (was 70%).
     """
-    if len(filas) < 3:
+    if len(rows) < 3:
         return False
-    n_cols = [len(f) for f in filas]
+    n_cols = [len(r) for r in rows]
     if max(n_cols) < 2:
         return False
-    modo = max(set(n_cols), key=n_cols.count)
-    if modo < 2:
+    mode_ncols = max(set(n_cols), key=n_cols.count)
+    if mode_ncols < 2:
         return False
-    return sum(1 for n in n_cols if n == modo) >= max(2, len(filas) * 0.8)
+    return sum(1 for n in n_cols if n == mode_ncols) >= max(2, len(rows) * 0.8)
 
 
-# ── 2d. OCR de celda individual ──────────────────────────────────────────────
+# ── 2d. Single-cell OCR ───────────────────────────────────────────────────
 
-def _ocr_celda(recorte: np.ndarray, lang: str) -> str:
-    """OCR de una celda con PSM 7 (una línea) o PSM 6 si es multilinea."""
-    alto = recorte.shape[0]
-    # Padding para evitar que Tesseract corte caracteres del borde
-    padded = cv2.copyMakeBorder(recorte, 6, 6, 6, 6,
+def _ocr_cell(crop: np.ndarray, lang: str) -> str:
+    """OCR of a cell with PSM 7 (single line) or PSM 6 if multi-line."""
+    height = crop.shape[0]
+    # Padding so Tesseract does not cut off border characters
+    padded = cv2.copyMakeBorder(crop, 6, 6, 6, 6,
                                 cv2.BORDER_CONSTANT, value=255)
     pil_img = Image.fromarray(padded)
 
-    psm = "7" if alto < 60 else "6"
-    config = f"--psm {psm} -c preserve_interword_spaces=1"
-    texto = pytesseract.image_to_string(pil_img, lang=lang, config=config)
-    return texto.strip()
+    psm = "7" if height < 60 else "6"
+    tess_config = f"--psm {psm} -c preserve_interword_spaces=1"
+    text = pytesseract.image_to_string(pil_img, lang=lang, config=tess_config)
+    return text.strip()
 
 
-# ── 2e. Pipeline completo para una imagen ────────────────────────────────────
+# ── 2e. Full pipeline for one image ──────────────────────────────────────
 
-def extraer_tabla_de_imagen(
-    imagen_pil: Image.Image,
+def extract_table_from_image(
+    pil_image: Image.Image,
     lang: str = "grc+eng",
-    aplicar_postproc: bool = True,
-    texto_pagina_anterior: Optional[str] = None,
-    _texto_pagina: Optional[str] = None,
+    apply_postprocessing: bool = True,
+    previous_page_text: Optional[str] = None,
+    _page_text: Optional[str] = None,
 ) -> Optional[str]:
     """
-    Detecta y extrae la tabla de una imagen PIL (una página escaneada).
+    Detects and extracts the table from a PIL image (one scanned page).
 
-    Devuelve la tabla en formato Markdown, o None si no se detecta tabla.
-    `_texto_pagina` permite reutilizar un OCR ya realizado externamente.
+    Returns the table in Markdown format, or None if no table is detected.
+    `_page_text` allows reusing OCR that has already been performed
+    externally.
     """
-    # Paso 0: verificar caption (en esta página o en la anterior).
-    texto_pagina = _texto_pagina or pytesseract.image_to_string(
-        imagen_pil, lang=lang, config="--psm 3"
+    # Step 0: check for a caption (on this page or the previous one).
+    page_text = _page_text or pytesseract.image_to_string(
+        pil_image, lang=lang, config="--psm 3"
     )
-    tiene_caption = CAPTION_RE.search(texto_pagina) or (
-        texto_pagina_anterior and CAPTION_RE.search(texto_pagina_anterior)
+    has_caption = CAPTION_RE.search(page_text) or (
+        previous_page_text and CAPTION_RE.search(previous_page_text)
     )
-    if not tiene_caption:
+    if not has_caption:
         return None
 
-    img_gray = np.array(imagen_pil.convert("L"))
-    img_proc = _preprocesar(img_gray)
+    img_gray = np.array(pil_image.convert("L"))
+    processed_img = _preprocess(img_gray)
 
-    bbox = _bbox_tabla(img_proc)
+    bbox = _table_bbox(processed_img)
     if bbox is None:
         return None
 
     x, y, w, h = bbox
-    roi = img_proc[y:y+h, x:x+w]
+    roi = processed_img[y:y+h, x:x+w]
 
-    celdas = _detectar_celdas(roi)
-    if len(celdas) < 6:  # antes 4; el grid mínimo válido ahora es 3 filas x 2 cols = 6
+    cells = _detect_cells(roi)
+    if len(cells) < 6:  # was 4; the minimum valid grid is now 3 rows x 2 cols = 6
         return None
 
-    filas = _agrupar_filas(celdas, alto_roi=h)
-    if not _es_grid_valido(filas):
+    rows = _group_rows(cells, roi_height=h)
+    if not _is_valid_grid(rows):
         return None
 
-    datos: list[list[str]] = []
-    for fila in filas:
-        fila_textos = []
-        for (cx, cy, cw, ch) in fila:
-            recorte = roi[cy:cy+ch, cx:cx+cw]
-            texto = _ocr_celda(recorte, lang=lang)
-            if aplicar_postproc:
-                texto = _corregir_celda(texto)
-            fila_textos.append(texto)
-        datos.append(fila_textos)
+    data: list[list[str]] = []
+    for row in rows:
+        row_texts = []
+        for (cx, cy, cw, ch) in row:
+            crop = roi[cy:cy+ch, cx:cx+cw]
+            text = _ocr_cell(crop, lang=lang)
+            if apply_postprocessing:
+                text = _fix_cell(text)
+            row_texts.append(text)
+        data.append(row_texts)
 
-    if not datos:
+    if not data:
         return None
 
-    # Verificación final: si tras el OCR la mayoría de las celdas están vacías,
-    # lo detectado probablemente no era una tabla de datos real (podía ser un
-    # recuadro decorativo o una figura con marco), así que se descarta.
-    total_celdas = sum(len(f) for f in datos)
-    celdas_con_texto = sum(1 for f in datos for c in f if c.strip())
-    if total_celdas == 0 or (celdas_con_texto / total_celdas) < 0.5:
+    # Final check: if, after OCR, most cells are empty, what was detected
+    # was probably not a real data table (it could have been a decorative
+    # box or a framed figure), so it is discarded.
+    total_cells = sum(len(r) for r in data)
+    cells_with_text = sum(1 for r in data for c in r if c.strip())
+    if total_cells == 0 or (cells_with_text / total_cells) < 0.5:
         return None
 
-    return _tabla_a_markdown(datos)
+    return _table_to_markdown(data)
 
 
-def extraer_tablas_escaneado(
-    imagenes: list[Image.Image],
+def extract_tables_scanned(
+    images: list[Image.Image],
     lang: str = "grc+eng",
-    aplicar_postproc: bool = True,
-    primera_pagina: int = 1,
+    apply_postprocessing: bool = True,
+    first_page: int = 1,
 ) -> dict[int, list[str]]:
     """
-    Extrae tablas de una lista de imágenes PIL (páginas ya convertidas).
+    Extracts tables from a list of PIL images (already converted pages).
 
-    Parámetros
+    Parameters
     ----------
-    imagenes        : páginas como PIL.Image (de convert_from_path/bytes).
-    lang            : idiomas Tesseract en formato 'grc+eng'.
-    aplicar_postproc: pasa cada celda por corregir_texto().
-    primera_pagina  : número de página real de imagenes[0] (para el informe).
+    images                : pages as PIL.Image (from convert_from_path/bytes).
+    lang                  : Tesseract languages, format 'grc+eng'.
+    apply_postprocessing  : passes each cell through fix_text().
+    first_page            : the real page number of images[0] (for reporting).
 
-    Devuelve
-    --------
-    {num_pagina_1based: [tabla_markdown, ...]}
+    Returns
+    -------
+    {page_num_1based: [markdown_table, ...]}
     """
-    resultado: dict[int, list[str]] = {}
-    texto_anterior: Optional[str] = None
+    result: dict[int, list[str]] = {}
+    previous_text: Optional[str] = None
 
-    for i, img in enumerate(imagenes):
-        num_pagina = primera_pagina + i
+    for i, img in enumerate(images):
+        page_number = first_page + i
 
-        # OCR rápido de esta página (se reutiliza como texto_anterior para la siguiente)
-        texto_pagina = pytesseract.image_to_string(img, lang=lang, config="--psm 3")
+        # Quick OCR of this page (reused as previous_text for the next one)
+        page_text = pytesseract.image_to_string(img, lang=lang, config="--psm 3")
 
-        tiene_caption = CAPTION_RE.search(texto_pagina) or (
-            texto_anterior and CAPTION_RE.search(texto_anterior)
+        has_caption = CAPTION_RE.search(page_text) or (
+            previous_text and CAPTION_RE.search(previous_text)
         )
 
-        if tiene_caption:
-            tabla_md = extraer_tabla_de_imagen(
+        if has_caption:
+            table_md = extract_table_from_image(
                 img,
                 lang=lang,
-                aplicar_postproc=aplicar_postproc,
-                texto_pagina_anterior=texto_anterior,
-                _texto_pagina=texto_pagina,   # evita repetir el OCR dentro
+                apply_postprocessing=apply_postprocessing,
+                previous_page_text=previous_text,
+                _page_text=page_text,   # avoids repeating the OCR inside
             )
-            if tabla_md:
-                resultado[num_pagina] = [tabla_md]
-                print(f"[table_extractor] Pág. {num_pagina}: tabla extraída "
-                      f"({tabla_md.count(chr(10))+1} filas)")
+            if table_md:
+                result[page_number] = [table_md]
+                print(f"[table_extractor] Page {page_number}: table extracted "
+                      f"({table_md.count(chr(10))+1} rows)")
             else:
-                print(f"[table_extractor] Pág. {num_pagina}: caption sin tabla visual")
+                print(f"[table_extractor] Page {page_number}: caption without a visible table")
         else:
-            print(f"[table_extractor] Pág. {num_pagina}: sin caption, omitida")
+            print(f"[table_extractor] Page {page_number}: no caption, skipped")
 
-        texto_anterior = texto_pagina
+        previous_text = page_text
 
-    return resultado
+    return result
 
 
 # ===========================================================================
-# ROUTER PRINCIPAL
+# MAIN ROUTER
 # ===========================================================================
 
-def extraer_tablas(
+def extract_tables(
     pdf_path: str,
-    tipo: str,
-    imagenes: Optional[list[Image.Image]] = None,
+    pdf_type: str,
+    images: Optional[list[Image.Image]] = None,
     lang: str = "grc+eng",
-    aplicar_postproc: bool = True,
+    apply_postprocessing: bool = True,
 ) -> dict[int, list[str]]:
     """
-    Punto de entrada único.
+    Single entry point.
 
-    Parámetros
+    Parameters
     ----------
-    pdf_path     : ruta al PDF original (siempre necesaria).
-    tipo         : "digital" (texto seleccionable) o "escaneado" (imágenes).
-    imagenes     : páginas como PIL.Image; obligatorio si tipo="escaneado".
-    lang         : idiomas Tesseract (solo flujo escaneado).
-    aplicar_postproc: aplica corregir_texto() a cada celda.
+    pdf_path              : path to the original PDF (always required).
+    pdf_type               : "digital" (selectable text) or "scanned" (images).
+    images                : pages as PIL.Image; required if pdf_type="scanned".
+    lang                   : Tesseract languages (scanned flow only).
+    apply_postprocessing   : applies fix_text() to each cell.
 
-    Devuelve
-    --------
-    {num_pagina: [tabla_markdown, ...]}
+    Returns
+    -------
+    {page_num: [markdown_table, ...]}
     """
-    if tipo not in ("digital", "escaneado"):
-        raise ValueError(f"tipo debe ser 'digital' o 'escaneado', no {tipo!r}")
+    if pdf_type not in ("digital", "scanned"):
+        raise ValueError(f"pdf_type must be 'digital' or 'scanned', not {pdf_type!r}")
 
-    if tipo == "digital":
-        return extraer_tablas_digital(pdf_path,
-                                      aplicar_postproc=aplicar_postproc)
+    if pdf_type == "digital":
+        return extract_tables_digital(pdf_path,
+                                       apply_postprocessing=apply_postprocessing)
     else:
-        if imagenes is None:
+        if images is None:
             raise ValueError(
-                "Para PDFs escaneados pasa 'imagenes' "
-                "(lista de PIL obtenida con convert_from_path)."
+                "For scanned PDFs pass 'images' "
+                "(a list of PIL images obtained with convert_from_path)."
             )
-        return extraer_tablas_escaneado(imagenes, lang=lang,
-                                        aplicar_postproc=aplicar_postproc)
+        return extract_tables_scanned(images, lang=lang,
+                                       apply_postprocessing=apply_postprocessing)
 
 
 # ===========================================================================
-# Inserción de tablas en el texto (compartida por pdf_to_markdown.py y las GUI)
+# Inserting tables into the text (shared by pdf_to_markdown.py and the GUIs)
 # ===========================================================================
 
-def insertar_tablas_en_texto(texto: str, tablas_md: list[str]) -> str:
+def insert_tables_into_text(text: str, tables_md: list[str]) -> str:
     """
-    Inserta cada tabla en Markdown justo después de la LÍNEA completa que
-    contiene su caption (no solo después del número), para no partir la
-    frase del pie de tabla por la mitad (p. ej. "Table 1. Sample data" no
-    debe quedar cortado entre "Table 1" y ". Sample data").
+    Inserts each Markdown table right after the full LINE that contains
+    its caption (not just after the number), so as not to split the table
+    caption sentence in half (e.g. "Table 1. Sample data" should not end
+    up cut between "Table 1" and ". Sample data").
     """
-    if not tablas_md:
-        return texto
-    matches = list(CAPTION_RE.finditer(texto))
+    if not tables_md:
+        return text
+    matches = list(CAPTION_RE.finditer(text))
     if not matches:
-        return texto
+        return text
 
-    partes, prev_end = [], 0
+    parts, prev_end = [], 0
     for i, m in enumerate(matches):
-        fin_linea = texto.find("\n", m.end())
-        fin_linea = len(texto) if fin_linea == -1 else fin_linea
-        partes.append(texto[prev_end:fin_linea])
-        if i < len(tablas_md):
-            partes.append(f"\n\n{tablas_md[i]}\n")
-        prev_end = fin_linea
-    partes.append(texto[prev_end:])
-    return "".join(partes)
+        line_end = text.find("\n", m.end())
+        line_end = len(text) if line_end == -1 else line_end
+        parts.append(text[prev_end:line_end])
+        if i < len(tables_md):
+            parts.append(f"\n\n{tables_md[i]}\n")
+        prev_end = line_end
+    parts.append(text[prev_end:])
+    return "".join(parts)
 
 
 # ===========================================================================
-# Formateo de resultado para incrustar en Markdown
+# Result formatting for embedding into Markdown
 # ===========================================================================
 
-def tablas_a_texto(resultado: dict[int, list[str]]) -> str:
+def tables_to_text(result: dict[int, list[str]]) -> str:
     """
-    Convierte el dict {num_pagina: [md, ...]} en un bloque de texto Markdown
-    listo para insertar en el documento de salida.
+    Converts the dict {page_num: [md, ...]} into a block of Markdown text
+    ready to insert into the output document.
     """
-    partes = []
-    for num_pag, tablas in sorted(resultado.items()):
-        for j, tabla in enumerate(tablas, 1):
-            titulo = f"### Tabla {j} — Página {num_pag}"
-            partes.append(f"{titulo}\n\n{tabla}")
-    return "\n\n---\n\n".join(partes)
+    parts = []
+    for page_num, tables in sorted(result.items()):
+        for j, table in enumerate(tables, 1):
+            title = f"### Table {j} — Page {page_num}"
+            parts.append(f"{title}\n\n{table}")
+    return "\n\n---\n\n".join(parts)

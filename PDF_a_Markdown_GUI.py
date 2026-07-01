@@ -1,15 +1,20 @@
 """
 PDF_a_Markdown_GUI.py
 ----------------------
-Aplicación de escritorio (sin terminal, sin Python visible) para convertir
-un PDF con texto en griego clásico a un archivo Markdown.
+Desktop application (no terminal, no visible Python) to convert a PDF
+with classical Greek text into a Markdown file.
 
-Pensada para compañeros sin conocimientos de informática: se elige el PDF,
-se elige dónde guardar, se pulsa "Convertir" y ya está.
+Designed for colleagues with no computing background: pick the PDF,
+pick where to save it, click "Convertir" ("Convert"), and that's it.
 
-Esta versión NO extrae tablas (para eso existe la aplicación hermana
-`PDF_a_Markdown_con_Tablas_GUI.py`), lo que la hace más rápida y sencilla
-para documentos que son solo texto corrido.
+Note on language: the code (identifiers, comments) is in English, but the
+text actually shown inside the window (labels, buttons, log messages) is
+kept in Spanish, since this app is meant for non-technical, Spanish-
+speaking colleagues.
+
+This version does NOT extract tables (for that, see the sibling app
+`PDF_a_Markdown_con_Tablas_GUI.py`), which makes it faster and simpler
+for documents that are plain running text.
 """
 
 from __future__ import annotations
@@ -19,14 +24,14 @@ from pathlib import Path
 import customtkinter as ctk
 
 from gui_common import (
-    COLOR_TEXTO_SECUNDARIO,
-    MotorConversion,
-    abrir_archivo,
-    abrir_carpeta,
-    crear_selector_archivo,
-    crear_selector_carpeta,
-    crear_selector_idiomas,
-    obtener_lang_string,
+    SECONDARY_TEXT_COLOR,
+    ConversionEngine,
+    open_file,
+    open_folder,
+    create_file_selector,
+    create_folder_selector,
+    create_language_selector,
+    get_lang_string,
 )
 
 
@@ -37,119 +42,119 @@ class App(ctk.CTk):
         self.geometry("680x700")
         self.minsize(600, 620)
 
-        self.motor = MotorConversion()
-        self.ultimo_output: Path | None = None
+        self.engine = ConversionEngine()
+        self.last_output: Path | None = None
 
-        self.var_pdf = ctk.StringVar()
-        self.var_output_dir = ctk.StringVar(value=str(Path.home() / "Documents" / "markdown"))
-        self.var_rango_activo = ctk.BooleanVar(value=False)
-        self.var_pag_inicio = ctk.StringVar()
-        self.var_pag_fin = ctk.StringVar()
+        self.pdf_var = ctk.StringVar()
+        self.output_dir_var = ctk.StringVar(value=str(Path.home() / "Documents" / "markdown"))
+        self.page_range_active_var = ctk.BooleanVar(value=False)
+        self.start_page_var = ctk.StringVar()
+        self.end_page_var = ctk.StringVar()
 
-        self._construir_ui()
-        self.after(150, self._consumir_cola)
+        self._build_ui()
+        self.after(150, self._poll_queue)
 
     # ------------------------------------------------------------------ UI
-    def _construir_ui(self) -> None:
-        contenedor = ctk.CTkFrame(self, fg_color="transparent")
-        contenedor.pack(fill="both", expand=True, padx=26, pady=22)
+    def _build_ui(self) -> None:
+        container = ctk.CTkFrame(self, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=26, pady=22)
 
-        # --- Cabecera ---
-        cabecera = ctk.CTkFrame(contenedor, corner_radius=14)
-        cabecera.pack(fill="x", pady=(0, 18))
+        # --- Header ---
+        header = ctk.CTkFrame(container, corner_radius=14)
+        header.pack(fill="x", pady=(0, 18))
         ctk.CTkLabel(
-            cabecera, text="📜  PDF a Markdown",
+            header, text="📜  PDF a Markdown",
             font=ctk.CTkFont(size=22, weight="bold"),
         ).pack(anchor="w", padx=18, pady=(14, 2))
         ctk.CTkLabel(
-            cabecera,
+            header,
             text="Griego clásico y otros idiomas académicos, con corrección automática de OCR.",
-            text_color=COLOR_TEXTO_SECUNDARIO,
+            text_color=SECONDARY_TEXT_COLOR,
         ).pack(anchor="w", padx=18, pady=(0, 14))
 
-        # --- Tarjeta de configuración ---
-        tarjeta = ctk.CTkFrame(contenedor, corner_radius=14)
-        tarjeta.pack(fill="x", pady=(0, 16))
-        interior = ctk.CTkFrame(tarjeta, fg_color="transparent")
-        interior.pack(fill="x", padx=18, pady=16)
+        # --- Settings card ---
+        card = ctk.CTkFrame(container, corner_radius=14)
+        card.pack(fill="x", pady=(0, 16))
+        inner = ctk.CTkFrame(card, fg_color="transparent")
+        inner.pack(fill="x", padx=18, pady=16)
 
-        crear_selector_archivo(
-            interior,
+        create_file_selector(
+            inner,
             "1.  Selecciona el PDF",
-            self.var_pdf,
+            self.pdf_var,
             filetypes=[("Archivos PDF", "*.pdf")],
         ).pack(fill="x", pady=(0, 16))
 
-        crear_selector_carpeta(
-            interior, "2.  Carpeta donde guardar el .md", self.var_output_dir
+        create_folder_selector(
+            inner, "2.  Carpeta donde guardar el .md", self.output_dir_var
         ).pack(fill="x", pady=(0, 16))
 
-        frame_idiomas, self.vars_idiomas = crear_selector_idiomas(interior)
-        frame_idiomas.pack(fill="x", pady=(0, 16))
+        lang_frame, self.lang_vars = create_language_selector(inner)
+        lang_frame.pack(fill="x", pady=(0, 16))
 
-        # Rango de páginas opcional
+        # Optional page range
         ctk.CTkCheckBox(
-            interior, text="Convertir solo un rango de páginas",
-            variable=self.var_rango_activo, command=self._alternar_rango,
+            inner, text="Convertir solo un rango de páginas",
+            variable=self.page_range_active_var, command=self._toggle_page_range,
         ).pack(anchor="w", pady=(0, 6))
 
-        self.fila_paginas = ctk.CTkFrame(interior, fg_color="transparent")
-        self.fila_paginas.pack(fill="x")
-        ctk.CTkLabel(self.fila_paginas, text="Desde página:").pack(side="left")
-        self.entry_inicio = ctk.CTkEntry(self.fila_paginas, textvariable=self.var_pag_inicio, width=70, state="disabled")
-        self.entry_inicio.pack(side="left", padx=(6, 18))
-        ctk.CTkLabel(self.fila_paginas, text="Hasta página:").pack(side="left")
-        self.entry_fin = ctk.CTkEntry(self.fila_paginas, textvariable=self.var_pag_fin, width=70, state="disabled")
-        self.entry_fin.pack(side="left", padx=(6, 0))
+        self.page_range_row = ctk.CTkFrame(inner, fg_color="transparent")
+        self.page_range_row.pack(fill="x")
+        ctk.CTkLabel(self.page_range_row, text="Desde página:").pack(side="left")
+        self.start_page_entry = ctk.CTkEntry(self.page_range_row, textvariable=self.start_page_var, width=70, state="disabled")
+        self.start_page_entry.pack(side="left", padx=(6, 18))
+        ctk.CTkLabel(self.page_range_row, text="Hasta página:").pack(side="left")
+        self.end_page_entry = ctk.CTkEntry(self.page_range_row, textvariable=self.end_page_var, width=70, state="disabled")
+        self.end_page_entry.pack(side="left", padx=(6, 0))
 
-        # --- Botón de conversión ---
-        self.boton_convertir = ctk.CTkButton(
-            contenedor, text="✨  Convertir a Markdown", height=46,
-            font=ctk.CTkFont(size=15, weight="bold"), command=self._on_convertir,
+        # --- Convert button ---
+        self.convert_button = ctk.CTkButton(
+            container, text="✨  Convertir a Markdown", height=46,
+            font=ctk.CTkFont(size=15, weight="bold"), command=self._on_convert,
         )
-        self.boton_convertir.pack(fill="x", pady=(0, 14))
+        self.convert_button.pack(fill="x", pady=(0, 14))
 
-        self.barra_progreso = ctk.CTkProgressBar(contenedor, height=10)
-        self.barra_progreso.set(0)
-        self.barra_progreso.pack(fill="x", pady=(0, 12))
+        self.progress_bar = ctk.CTkProgressBar(container, height=10)
+        self.progress_bar.set(0)
+        self.progress_bar.pack(fill="x", pady=(0, 12))
 
-        # --- Registro ---
-        ctk.CTkLabel(contenedor, text="Registro de la conversión", anchor="w",
+        # --- Log ---
+        ctk.CTkLabel(container, text="Registro de la conversión", anchor="w",
                      font=ctk.CTkFont(weight="bold")).pack(fill="x")
-        self.caja_log = ctk.CTkTextbox(contenedor, height=170, state="disabled")
-        self.caja_log.pack(fill="both", expand=True, pady=(6, 14))
+        self.log_box = ctk.CTkTextbox(container, height=170, state="disabled")
+        self.log_box.pack(fill="both", expand=True, pady=(6, 14))
 
-        self.fila_final = ctk.CTkFrame(contenedor, fg_color="transparent")
-        self.fila_final.pack(fill="x")
-        self.boton_abrir = ctk.CTkButton(
-            self.fila_final, text="📄  Abrir el .md generado", state="disabled",
-            command=self._abrir_resultado,
+        self.bottom_row = ctk.CTkFrame(container, fg_color="transparent")
+        self.bottom_row.pack(fill="x")
+        self.open_file_button = ctk.CTkButton(
+            self.bottom_row, text="📄  Abrir el .md generado", state="disabled",
+            command=self._open_result,
         )
-        self.boton_abrir.pack(side="left")
-        self.boton_carpeta = ctk.CTkButton(
-            self.fila_final, text="📂  Abrir carpeta", state="disabled",
-            command=self._abrir_carpeta, fg_color="#8A6D4E", hover_color="#6E5540",
+        self.open_file_button.pack(side="left")
+        self.open_folder_button = ctk.CTkButton(
+            self.bottom_row, text="📂  Abrir carpeta", state="disabled",
+            command=self._open_output_folder, fg_color="#8A6D4E", hover_color="#6E5540",
         )
-        self.boton_carpeta.pack(side="left", padx=(10, 0))
+        self.open_folder_button.pack(side="left", padx=(10, 0))
 
-    def _alternar_rango(self) -> None:
-        estado = "normal" if self.var_rango_activo.get() else "disabled"
-        self.entry_inicio.configure(state=estado)
-        self.entry_fin.configure(state=estado)
+    def _toggle_page_range(self) -> None:
+        state = "normal" if self.page_range_active_var.get() else "disabled"
+        self.start_page_entry.configure(state=state)
+        self.end_page_entry.configure(state=state)
 
-    # -------------------------------------------------------------- lógica
-    def _log(self, texto: str) -> None:
-        self.caja_log.configure(state="normal")
-        self.caja_log.insert("end", texto + "\n")
-        self.caja_log.see("end")
-        self.caja_log.configure(state="disabled")
+    # -------------------------------------------------------------- logic
+    def _log(self, text: str) -> None:
+        self.log_box.configure(state="normal")
+        self.log_box.insert("end", text + "\n")
+        self.log_box.see("end")
+        self.log_box.configure(state="disabled")
 
-    def _on_convertir(self) -> None:
-        if self.motor.en_curso():
+    def _on_convert(self) -> None:
+        if self.engine.is_running():
             return
 
-        pdf_path = self.var_pdf.get().strip()
-        output_dir = self.var_output_dir.get().strip()
+        pdf_path = self.pdf_var.get().strip()
+        output_dir = self.output_dir_var.get().strip()
 
         if not pdf_path:
             self._log("⚠ Selecciona primero un archivo PDF.")
@@ -161,73 +166,73 @@ class App(ctk.CTk):
             self._log("⚠ Indica una carpeta de salida.")
             return
 
-        lang = obtener_lang_string(self.vars_idiomas)
+        lang = get_lang_string(self.lang_vars)
         if lang is None:
             self._log("⚠ Marca al menos un idioma antes de convertir.")
             return
 
-        pagina_inicio = pagina_fin = None
-        if self.var_rango_activo.get():
+        start_page = end_page = None
+        if self.page_range_active_var.get():
             try:
-                pagina_inicio = int(self.var_pag_inicio.get())
-                pagina_fin = int(self.var_pag_fin.get())
-                if pagina_inicio < 1 or pagina_fin < pagina_inicio:
+                start_page = int(self.start_page_var.get())
+                end_page = int(self.end_page_var.get())
+                if start_page < 1 or end_page < start_page:
                     raise ValueError
             except ValueError:
                 self._log("⚠ El rango de páginas no es válido (revisa 'Desde' y 'Hasta').")
                 return
 
-        self.caja_log.configure(state="normal")
-        self.caja_log.delete("1.0", "end")
-        self.caja_log.configure(state="disabled")
-        self.barra_progreso.set(0)
-        self.boton_convertir.configure(state="disabled", text="Convirtiendo...")
-        self.boton_abrir.configure(state="disabled")
-        self.boton_carpeta.configure(state="disabled")
+        self.log_box.configure(state="normal")
+        self.log_box.delete("1.0", "end")
+        self.log_box.configure(state="disabled")
+        self.progress_bar.set(0)
+        self.convert_button.configure(state="disabled", text="Convirtiendo...")
+        self.open_file_button.configure(state="disabled")
+        self.open_folder_button.configure(state="disabled")
 
-        self.motor.iniciar(
+        self.engine.start(
             pdf_path=Path(pdf_path),
             output_dir=Path(output_dir),
             lang=lang,
-            con_tablas=False,
-            pagina_inicio=pagina_inicio,
-            pagina_fin=pagina_fin,
+            with_tables=False,
+            start_page=start_page,
+            end_page=end_page,
         )
 
-    def _consumir_cola(self) -> None:
+    def _poll_queue(self) -> None:
         try:
             while True:
-                mensaje = self.motor.cola.get_nowait()
-                tipo = mensaje[0]
+                message = self.engine.queue.get_nowait()
+                msg_type = message[0]
 
-                if tipo == "log":
-                    self._log(mensaje[1])
-                elif tipo == "progreso":
-                    actual, total = mensaje[1], mensaje[2]
-                    self.barra_progreso.set(actual / total if total else 0)
-                elif tipo == "hecho":
-                    ruta = Path(mensaje[1])
-                    self.ultimo_output = ruta
-                    self._log(f"\n✅ Conversión terminada.\nArchivo guardado en:\n{ruta}")
-                    self.boton_convertir.configure(state="normal", text="✨  Convertir a Markdown")
-                    self.boton_abrir.configure(state="normal")
-                    self.boton_carpeta.configure(state="normal")
-                    self.barra_progreso.set(1)
-                elif tipo == "error":
-                    self._log(f"\n❌ Ha ocurrido un error:\n{mensaje[1]}")
-                    self.boton_convertir.configure(state="normal", text="✨  Convertir a Markdown")
+                if msg_type == "log":
+                    self._log(message[1])
+                elif msg_type == "progress":
+                    current, total = message[1], message[2]
+                    self.progress_bar.set(current / total if total else 0)
+                elif msg_type == "done":
+                    path = Path(message[1])
+                    self.last_output = path
+                    self._log(f"\n✅ Conversión terminada.\nArchivo guardado en:\n{path}")
+                    self.convert_button.configure(state="normal", text="✨  Convertir a Markdown")
+                    self.open_file_button.configure(state="normal")
+                    self.open_folder_button.configure(state="normal")
+                    self.progress_bar.set(1)
+                elif msg_type == "error":
+                    self._log(f"\n❌ Ha ocurrido un error:\n{message[1]}")
+                    self.convert_button.configure(state="normal", text="✨  Convertir a Markdown")
         except Exception:
             pass
         finally:
-            self.after(150, self._consumir_cola)
+            self.after(150, self._poll_queue)
 
-    def _abrir_resultado(self) -> None:
-        if self.ultimo_output:
-            abrir_archivo(self.ultimo_output)
+    def _open_result(self) -> None:
+        if self.last_output:
+            open_file(self.last_output)
 
-    def _abrir_carpeta(self) -> None:
-        if self.ultimo_output:
-            abrir_carpeta(self.ultimo_output.parent)
+    def _open_output_folder(self) -> None:
+        if self.last_output:
+            open_folder(self.last_output.parent)
 
 
 if __name__ == "__main__":

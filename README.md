@@ -2,26 +2,26 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21104928.svg)](https://doi.org/10.5281/zenodo.21104928)
 
-Convierte un PDF con texto en griego clásico (y/o inglés, francés, italiano, etc.) a un archivo Markdown (`.md`) usando reconocimiento óptico de caracteres (OCR), corrigiendo después los errores típicos del OCR en griego.
+Converts a PDF containing Classical Greek text (and/or English, French, Italian, etc.) into a Markdown (`.md`) file using optical character recognition (OCR), then corrects the errors typical of Greek OCR.
 
-> **¿No tienes conocimientos de informática?** Sáltate todo lo de más abajo (clonar el repositorio, terminal, Python...) y ve directamente a la sección **["Para compañeros sin conocimientos de informática (sin Git, sin terminal)"](#para-compañeros-sin-conocimientos-de-informática-sin-git-sin-terminal)**, donde se explica cómo descargar y usar la aplicación con doble clic, sin código de por medio.
+> **No computing background?** Skip everything below (cloning the repository, terminal, Python...) and go directly to the **["For non-technical users (no Git, no terminal)"](#for-non-technical-users-no-git-no-terminal)** section, which explains how to download and use the application with a double-click, no code involved.
 >
-> Eso sí: **tanto si usas el código como si usas la aplicación con doble clic, es obligatorio instalar Tesseract OCR y Poppler aparte** (no van incluidos ni en el repositorio ni dentro del `.exe`/`.app`, son programas externos). No hay forma de saltarse ese paso; los enlaces de descarga y el comando de cada sistema operativo están explicados en esa misma sección.
+> That said: **whether you use the code or the double-click application, you must install Tesseract OCR and Poppler separately** (they are not bundled either in the repository or inside the `.exe`/`.app`; they are external programs). There is no way around this step; download links and the command for each operating system are explained in that same section.
 
-## Cómo citar este software
+## How to cite this software
 
-Si usas esta herramienta en tu investigación, cítala como:
+If you use this tool in your research, please cite it as:
 
-> Candel Lozano, C. (2026). *PDF-TO-MARKDOWN-CLASSIC-GREEK: conversión de PDF a Markdown con OCR y corrección automática para griego clásico* (v1.4) [Software]. Zenodo. https://doi.org/10.5281/zenodo.21104928
+> Candel Lozano, C. (2026). *PDF-TO-MARKDOWN-CLASSIC-GREEK: OCR-based PDF-to-Markdown conversion with automatic post-processing for Classical Greek* (v1.4) [Software]. Zenodo. https://doi.org/10.5281/zenodo.21104928
 
-En formato BibTeX:
+In BibTeX format:
 
 ```bibtex
 @software{candel_lozano_2026_pdf_to_markdown,
   author       = {Candel Lozano, Carlos},
-  title        = {{PDF-TO-MARKDOWN-CLASSIC-GREEK: conversión de PDF
-                   a Markdown con OCR y corrección automática para
-                   griego clásico}},
+  title        = {{PDF-TO-MARKDOWN-CLASSIC-GREEK: OCR-based
+                   PDF-to-Markdown conversion with automatic
+                   post-processing for Classical Greek}},
   year         = 2026,
   publisher    = {Zenodo},
   version      = {v1.4},
@@ -30,85 +30,85 @@ En formato BibTeX:
 }
 ```
 
-Los metadatos completos (autor, licencia, palabras clave) también están disponibles en el archivo [`CITATION.cff`](./CITATION.cff) de este repositorio, y GitHub los muestra directamente con el botón **"Cite this repository"** en la barra lateral.
+Full metadata (author, license, keywords) is also available in the [`CITATION.cff`](./CITATION.cff) file of this repository, and GitHub displays it directly with the **"Cite this repository"** button in the sidebar.
 
-## Por qué Markdown y no otro formato
+## Why Markdown and not another format
 
-Un PDF es, en esencia, una imagen fija: una IA (Claude, ChatGPT, Gemini...) no puede leer su contenido directamente. Hay que extraer el texto primero y guardarlo en un formato que la IA entienda bien.
+A PDF is, essentially, a fixed image: an AI (Claude, ChatGPT, Gemini...) cannot read its content directly. The text has to be extracted first and saved in a format the AI can understand well.
 
-- **Texto puro** (sin capas de formato binario como `.docx` o `.pdf`), se lee de principio a fin sin esfuerzo.
-- **Mantiene la estructura**: títulos, listas, negritas, etc. se marcan con símbolos simples, así la IA distingue jerarquía en vez de ver una masa de texto plana.
-- **Es el formato nativo de Claude**: el diálogo entre el texto y la IA es más directo y preciso.
-- **Ocupa muy poco espacio**: un PDF de 10 MB puede quedar en pocos KB, dejando más margen en la ventana de contexto.
-- **Universal y duradero**: cualquier editor de texto lo abre, sin depender de licencias ni versiones de software.
+- **Plain text** (no binary formatting layers like `.docx` or `.pdf`), read from start to finish effortlessly.
+- **Preserves structure**: headings, lists, bold text, etc. are marked with simple symbols, so the AI can tell the hierarchy apart instead of seeing a mass of flat text.
+- **Claude's native format**: the exchange between the text and the AI is more direct and precise.
+- **Very small footprint**: a 10 MB PDF can end up as just a few KB, leaving more room in the context window.
+- **Universal and durable**: any text editor can open it, with no dependency on licenses or software versions.
 
-Flujo de trabajo habitual:
+Typical workflow:
 
 ```
-PDF (original) → .md (este script) → pegarlo/subirlo a Claude → resumir, traducir, analizar, extraer datos...
+PDF (original) → .md (this script) → paste/upload to Claude → summarize, translate, analyze, extract data...
 ```
 
-## Estructura del proyecto
+## Project structure
 
-| Archivo | Función |
+| File | Purpose |
 | --- | --- |
-| `pdf_to_markdown.py` | Script principal (CLI). Convierte el PDF completo, un rango de páginas, y opcionalmente extrae tablas. |
-| `PDF_a_Markdown_GUI.py` | Aplicación de escritorio (sin terminal), solo texto. |
-| `PDF_a_Markdown_con_Tablas_GUI.py` | Aplicación de escritorio (sin terminal), texto + extracción estricta de tablas. |
-| `gui_common.py` | Motor de conversión y componentes compartidos por las dos aplicaciones de escritorio. |
-| `tema_calido.json` | Tema visual (tonos ámbar/marrón) de las aplicaciones de escritorio. |
-| `ocr_postprocess_mejorado.py` | Corrige errores típicos del OCR en griego clásico y en el texto académico multilingüe que lo acompaña. |
-| `pdf_table_extractor.py` | Extrae tablas de PDFs digitales (con `pdfplumber`) o escaneados (con OpenCV + Tesseract), con detección estricta. |
-| `config.py` | Configuración centralizada de las rutas de Tesseract y Poppler (vía variables de entorno). |
+| `pdf_to_markdown.py` | Main script (CLI). Converts the whole PDF, a page range, and optionally extracts tables. |
+| `PDF_a_Markdown_GUI.py` | Desktop application (no terminal), text only. |
+| `PDF_a_Markdown_con_Tablas_GUI.py` | Desktop application (no terminal), text + strict table extraction. |
+| `gui_common.py` | Conversion engine and components shared by the two desktop applications. |
+| `tema_calido.json` | Visual theme (amber/brown tones) for the desktop applications. |
+| `ocr_postprocess.py` | Corrects errors typical of OCR on Classical Greek and the surrounding multilingual academic text. |
+| `pdf_table_extractor.py` | Extracts tables from digital PDFs (with `pdfplumber`) or scanned PDFs (with OpenCV + Tesseract), with strict detection. |
+| `config.py` | Centralized configuration of Tesseract and Poppler paths (via environment variables). |
 
-## Requisitos previos
+## Prerequisites
 
 - Python 3.10+
-- [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) (con los paquetes de idioma que necesites, por ejemplo `grc` para griego clásico)
-- [Poppler](https://github.com/oschwartz10612/poppler-windows/releases) (en Windows; en Linux/macOS suele bastar con instalarlo por el gestor de paquetes del sistema)
+- [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) (with the language packs you need, e.g. `grc` for Classical Greek)
+- [Poppler](https://github.com/oschwartz10612/poppler-windows/releases) (on Windows; on Linux/macOS installing it via the system package manager is usually enough)
 
-### Clonar el repositorio
+### Clone the repository
 
-Abre una terminal (en Windows, Git Bash; en Linux/macOS, la Terminal normal) y ejecuta, uno a uno:
+Open a terminal (on Windows, Git Bash; on Linux/macOS, the regular Terminal) and run, one at a time:
 
 ```bash
 git clone https://github.com/candellozanocarlos/PDF-TO-MARKDOWN-CLASSIC-GREEK.git
 ```
 
-Esto crea una carpeta nueva llamada `PDF-TO-MARKDOWN-CLASSIC-GREEK` con una copia completa del repositorio. Entra en ella:
+This creates a new folder called `PDF-TO-MARKDOWN-CLASSIC-GREEK` with a full copy of the repository. Enter it:
 
 ```bash
 cd PDF-TO-MARKDOWN-CLASSIC-GREEK
 ```
 
-Todos los comandos de las secciones siguientes (`pip install`, `python pdf_to_markdown.py`, etc.) se ejecutan **desde dentro de esta carpeta**. Si en algún momento un comando da "No such file or directory" o "command not found", lo primero a comprobar es que sigues dentro de `PDF-TO-MARKDOWN-CLASSIC-GREEK` (con `pwd` en Linux/macOS o simplemente mirando la ruta que muestra el símbolo `$` en Git Bash).
+All the commands in the sections below (`pip install`, `python pdf_to_markdown.py`, etc.) are run **from inside this folder**. If at any point a command gives "No such file or directory" or "command not found", the first thing to check is that you are still inside `PDF-TO-MARKDOWN-CLASSIC-GREEK` (with `pwd` on Linux/macOS, or simply by looking at the path shown next to the `$` symbol in Git Bash).
 
-Si más adelante quieres actualizar tu copia local con los últimos cambios subidos al repositorio, hazlo con:
+If later on you want to update your local copy with the latest changes pushed to the repository, do so with:
 
 ```bash
 git pull
 ```
 
-### Instalar las dependencias de Python
+### Install the Python dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Instalar y configurar Tesseract y Poppler
+### Install and configure Tesseract and Poppler
 
-El proyecto necesita dos programas externos que **no son librerías de Python** (por eso `pip install -r requirements.txt` no los instala):
+The project needs two external programs that are **not Python libraries** (which is why `pip install -r requirements.txt` does not install them):
 
-- **Tesseract OCR**: el motor que "lee" el texto dentro de las imágenes de cada página del PDF. Sin él, no hay conversión posible.
-- **Poppler**: la librería que convierte cada página del PDF en una imagen antes de pasársela a Tesseract (la usa `pdf2image` por debajo).
+- **Tesseract OCR**: the engine that "reads" the text inside the image of each PDF page. Without it, no conversion is possible.
+- **Poppler**: the library that converts each PDF page into an image before handing it to Tesseract (used under the hood by `pdf2image`).
 
-#### Paso 1 — Instalarlos
+#### Step 1 — Install them
 
 **Windows:**
-1. Tesseract: descarga el instalador desde [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki) y ejecútalo. Durante la instalación, marca el paquete de idioma "Greek" (griego clásico) además del inglés si lo ofrece la lista de idiomas adicionales.
-2. Poppler: descarga el `.zip` desde [oschwartz10612/poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases) y descomprímelo en una carpeta fija, por ejemplo `C:\poppler` (Poppler para Windows no trae instalador, es solo un `.zip` con los ejecutables dentro).
+1. Tesseract: download the installer from [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki) and run it. During installation, check the "Greek" (Classical Greek) language pack in addition to English, if the installer offers it in the additional-languages list.
+2. Poppler: download the `.zip` from [oschwartz10612/poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases) and unzip it into a fixed folder, e.g. `C:\poppler` (Poppler for Windows has no installer, it is just a `.zip` with the executables inside).
 
-**macOS**, con [Homebrew](https://brew.sh) instalado:
+**macOS**, with [Homebrew](https://brew.sh) installed:
 ```bash
 brew install tesseract tesseract-lang poppler
 ```
@@ -117,29 +117,29 @@ brew install tesseract tesseract-lang poppler
 ```bash
 sudo apt install tesseract-ocr tesseract-ocr-grc poppler-utils
 ```
-(`tesseract-ocr-grc` es el paquete de idioma griego; añade `tesseract-ocr-fra`, `tesseract-ocr-deu`, etc. según los idiomas que necesites.)
+(`tesseract-ocr-grc` is the Greek language pack; add `tesseract-ocr-fra`, `tesseract-ocr-deu`, etc. depending on the languages you need.)
 
-#### Paso 2 — Comprobar que el proyecto los encuentra automáticamente
+#### Step 2 — Check that the project finds them automatically
 
-`config.py` intenta localizarlos solo, sin que tengas que configurar nada, buscando: el `PATH` del sistema, y en macOS además las carpetas típicas de Homebrew/MacPorts. En la mayoría de los casos con esto basta. Para comprobarlo, ejecuta:
+`config.py` tries to locate them on its own, without you having to configure anything, by looking at: the system `PATH`, and on macOS also the typical Homebrew/MacPorts directories. In most cases that is enough. To check, run:
 
 ```bash
-python -c "import config; print(config.verificar_dependencias_externas())"
+python -c "import config; print(config.check_external_dependencies())"
 ```
 
-- Si imprime `[]` (una lista vacía), todo en orden, puedes saltar directamente a la sección "Uso" de más abajo.
-- Si imprime uno o más mensajes de aviso, significa que no ha encontrado alguno de los dos programas y te dice cómo instalarlo; si ya los tienes instalados pero en una ruta poco habitual, sigue con el Paso 3.
+- If it prints `[]` (an empty list), everything is fine and you can jump straight to the "Usage" section below.
+- If it prints one or more warning messages, it means it could not find one of the two programs and tells you how to install it; if you already have them installed but in an unusual path, continue with Step 3.
 
-#### Paso 3 — Solo si el Paso 2 no los encontró: indicar la ruta manualmente
+#### Step 3 — Only if Step 2 did not find them: set the path manually
 
-Se hace con dos variables de entorno, **`TESSERACT_CMD`** (ruta al ejecutable de Tesseract) y **`POPPLER_PATH`** (ruta a la *carpeta* `bin` de Poppler, no al ejecutable). Hay que definirlas en la misma terminal donde vayas a ejecutar el script, cada vez que abras una terminal nueva (o añadirlas de forma permanente al perfil de tu shell, `.zshrc`/`.bashrc`/perfil de PowerShell, si no quieres repetirlo).
+This is done with two environment variables, **`TESSERACT_CMD`** (path to the Tesseract executable) and **`POPPLER_PATH`** (path to Poppler's `bin` *folder*, not the executable). They need to be set in the same terminal where you are going to run the script, every time you open a new terminal (or add them permanently to your shell profile, `.zshrc`/`.bashrc`/PowerShell profile, if you do not want to repeat this).
 
-**Windows (Git Bash o PowerShell):**
+**Windows (Git Bash or PowerShell):**
 ```bash
 export TESSERACT_CMD="/c/Program Files/Tesseract-OCR/tesseract.exe"
 export POPPLER_PATH="/c/poppler/Library/bin"
 ```
-o, en PowerShell:
+or, in PowerShell:
 ```powershell
 $env:TESSERACT_CMD = "C:\Program Files\Tesseract-OCR\tesseract.exe"
 $env:POPPLER_PATH  = "C:\poppler\Library\bin"
@@ -150,106 +150,104 @@ $env:POPPLER_PATH  = "C:\poppler\Library\bin"
 export TESSERACT_CMD=/usr/bin/tesseract
 export POPPLER_PATH=/usr/bin
 ```
-(ajusta la ruta a donde tengas realmente instalados los programas; en Mac con Homebrew suele ser `/opt/homebrew/bin` en chips Apple o `/usr/local/bin` en chips Intel).
+(adjust the path to wherever the programs are actually installed; on a Mac with Homebrew it is usually `/opt/homebrew/bin` on Apple silicon or `/usr/local/bin` on Intel chips).
 
-Vuelve a ejecutar el comando de comprobación del Paso 2 para confirmar que ahora sí los encuentra.
+Run the Step 2 check command again to confirm it now finds them.
 
 ---
 
-**Con esto, la instalación está completa.** El siguiente paso es la sección "Uso" de aquí abajo, donde se ejecuta ya la conversión propiamente dicha.
+**With this, installation is complete.** The next step is the "Usage" section below, where the actual conversion is run.
 
-## Uso
+## Usage
 
-Documento completo:
-
-```bash
-python pdf_to_markdown.py "articulo.pdf" -o ./markdown --lang eng+grc
-```
-
-Solo un rango de páginas:
+Full document:
 
 ```bash
-python pdf_to_markdown.py "libro.pdf" -o ./markdown --lang grc+eng+fra --paginas 79-130
+python pdf_to_markdown.py "article.pdf" -o ./markdown --lang eng+grc
 ```
 
-Con extracción de tablas (detecta automáticamente si el PDF es digital o escaneado):
+Only a page range:
 
 ```bash
-python pdf_to_markdown.py "articulo.pdf" -o ./markdown --tablas
+python pdf_to_markdown.py "book.pdf" -o ./markdown --lang grc+eng+fra --pages 79-130
 ```
 
-Ver todas las opciones:
+With table extraction (automatically detects whether the PDF is digital or scanned):
+
+```bash
+python pdf_to_markdown.py "article.pdf" -o ./markdown --tables
+```
+
+See all options:
 
 ```bash
 python pdf_to_markdown.py --help
 ```
 
-El `.md` resultante se guarda en la carpeta de salida indicada con `-o` y se abre automáticamente al terminar (usa `--no-abrir` para desactivarlo; en Linux/macOS se abre con `xdg-open`/`open` si están disponibles).
+The resulting `.md` is saved in the output folder given with `-o` and opens automatically when done (use `--no-open` to disable this; on Linux/macOS it opens with `xdg-open`/`open` if available).
 
-### Configuración de idiomas
+### Language configuration
 
-El OCR usa `--lang eng+grc` (inglés + griego clásico) por defecto. Puedes añadir otros idiomas instalados en Tesseract (`fra`, `deu`, `ita`...) o dejar solo `grc` si el documento es íntegramente griego.
+OCR uses `--lang eng+grc` (English + Classical Greek) by default. You can add other languages installed in Tesseract (`fra`, `deu`, `ita`...) or leave only `grc` if the document is entirely in Greek.
 
-## Para compañeros sin conocimientos de informática (sin Git, sin terminal)
+## For non-technical users (no Git, no terminal)
 
-Si vas a compartir esta herramienta con alguien que no sabe qué es Git ni una terminal, **no le mandes este repositorio para que lo clone**: mándale directamente un `.exe` a través de la sección "Releases" de GitHub. Así su experiencia se reduce a: descargar un archivo, hacer doble clic, y usar la ventana.
+If you are going to share this tool with someone who does not know what Git or a terminal is, **do not send them this repository to clone**: send them a `.exe`/`.app` directly through GitHub's "Releases" section instead. That way their experience boils down to: download a file, double-click it, and use the window.
 
-### Lo que tiene que hacer la persona que lo use (nada de código)
+### What the person using it has to do (no code)
 
-**Requisito previo, una sola vez:** aunque el `.exe`/`.app` lleva empaquetado todo el código Python, **no lleva Tesseract ni Poppler** (son programas externos, no bibliotecas de Python, así que PyInstaller no los incluye). Hay que instalarlos aparte una vez:
+**One-time prerequisite:** even though the `.exe`/`.app` bundles all the Python code, **it does not bundle Tesseract or Poppler** (they are external programs, not Python libraries, so PyInstaller does not include them). They need to be installed separately, once:
 
 - **Windows:**
-  1. Tesseract OCR: descargar el instalador desde [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki) y ejecutarlo (dejar las opciones por defecto; asegúrate de marcar el paquete de idioma griego, "Greek", si el instalador lo ofrece como opción).
-  2. Poppler: descargar el `.zip` desde [oschwartz10612/poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases), descomprimirlo en, por ejemplo, `C:\poppler`.
-  3. Si la aplicación no los encuentra automáticamente, definir las variables de entorno `TESSERACT_CMD` y `POPPLER_PATH` (Panel de control → Sistema → Configuración avanzada → Variables de entorno) apuntando a la ruta del `.exe` de Tesseract y a la carpeta `bin` de Poppler respectivamente.
+  1. Tesseract OCR: download the installer from [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki) and run it (leave the default options; make sure to check the Greek language pack, "Greek", if the installer offers it as an option).
+  2. Poppler: download the `.zip` from [oschwartz10612/poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases), unzip it into, e.g., `C:\poppler`.
+  3. If the application does not find them automatically, set the `TESSERACT_CMD` and `POPPLER_PATH` environment variables (Control Panel → System → Advanced settings → Environment Variables) pointing to Tesseract's `.exe` path and to Poppler's `bin` folder respectively.
 
-- **macOS:** con [Homebrew](https://brew.sh) instalado, abrir la aplicación Terminal (viene con macOS) y ejecutar una sola vez:
+- **macOS:** with [Homebrew](https://brew.sh) installed, open the Terminal app (comes with macOS) and run once:
   ```bash
   brew install tesseract tesseract-lang poppler
   ```
-  (`tesseract-lang` incluye el paquete de griego clásico y otros idiomas; sin él, Tesseract solo reconoce inglés.)
+  (`tesseract-lang` includes the Classical Greek package and other languages; without it, Tesseract only recognizes English.)
 
-Si te falta alguno de los dos, la aplicación lo detecta al intentar convertir y te lo dice claramente en el propio registro de la ventana (con instrucciones de instalación), en vez de fallar con un error críptico.
+If either one is missing, the application detects it when you try to convert and tells you clearly in the window's own log (with installation instructions), instead of failing with a cryptic error.
 
-**Uso normal, una vez instalado lo anterior:**
+**Normal usage, once the above is installed:**
 
-1. Entra en la página de **Releases** del repositorio (enlace fijado en la barra lateral derecha de GitHub, o en `.../releases`).
-2. Descarga el archivo correspondiente a tu sistema y a lo que necesites: `.exe` en Windows, `.zip` con un `.app` dentro en macOS ("PDF a Markdown" para texto, o "PDF a Markdown (con tablas)" si también necesita tablas).
-3. Ábrelo:
-   - **Windows:** doble clic. Probablemente aparezca un aviso de SmartScreen ("Windows protegió tu PC") porque el `.exe` no está firmado digitalmente; pulsa **"Más información"** → **"Ejecutar de todos modos"**. Esto es normal en programas de un solo desarrollador sin certificado de pago, no significa que el programa sea inseguro.
-   - **macOS:** descomprime el `.zip`, y para el primer uso haz clic derecho sobre el `.app` → "Abrir" (en vez de doble clic normal), para saltar el aviso de "desarrollador no verificado". A partir de ahí, doble clic funciona con normalidad.
-4. Usa la ventana con normalidad: seleccionar PDF, carpeta de salida, idiomas, y pulsar "Convertir".
+1. Go to the repository's **Releases** page (link pinned in GitHub's right-hand sidebar, or at `.../releases`).
+2. Download the file matching your system and what you need: `.exe` on Windows, `.zip` containing an `.app` on macOS ("PDF a Markdown" for text, or "PDF a Markdown (con tablas)" if you also need tables).
+3. Open it:
+   - **Windows:** double-click. A SmartScreen warning ("Windows protected your PC") will probably appear because the `.exe` is not digitally signed; click **"More info"** → **"Run anyway"**. This is normal for software from a single developer without a paid certificate, it does not mean the program is unsafe.
+   - **macOS:** unzip the `.zip`, and for the first use, right-click the `.app` → "Open" (instead of a normal double-click), to skip the "unverified developer" warning. After that, a normal double-click works fine.
+4. Use the window as normal: select the PDF, the output folder, the languages, and click "Convertir" ("Convert").
 
-## Detección estricta de tablas
+## Strict table detection
 
-`PDF_a_Markdown_con_Tablas_GUI.py` (y `pdf_to_markdown.py --tablas`) solo consideran que hay una tabla si se cumple **todo** lo siguiente:
+`PDF_a_Markdown_con_Tablas_GUI.py` (and `pdf_to_markdown.py --tables`) only consider that a table exists if **all** of the following hold:
 
-- La página contiene un pie explícito de **tabla** (no de figura): "Table 1", "Tabla 1", "Tab. 1", "Cuadro 1", "Tableau 1"... (los pies de figura, "Figure"/"Fig."/"Abb.", quedan excluidos a propósito).
-- La rejilla tiene al menos 3 filas y 2 columnas, con al menos un 75-80 % de las filas compartiendo el mismo número de columnas.
-- Al menos la mitad de las celdas contienen texto real tras el OCR (descarta recuadros vacíos o mal detectados).
-- En PDFs escaneados, además: al menos 4 líneas horizontales y 3 verticales detectadas (un simple marco decorativo con solo borde exterior no cumple este mínimo), y la región debe ocupar al menos un 2 % del área de la página.
+- The page contains an explicit **table** caption (not a figure caption): "Table 1", "Tabla 1", "Tab. 1", "Cuadro 1", "Tableau 1"... (figure captions, "Figure"/"Fig."/"Abb.", are deliberately excluded).
+- The grid has at least 3 rows and 2 columns, with at least 75-80% of rows sharing the same number of columns.
+- At least half of the cells contain real text after OCR (discards empty or misdetected boxes).
+- On scanned PDFs, additionally: at least 4 horizontal and 3 vertical lines detected (a plain decorative frame with only an outer border does not meet this minimum), and the region must cover at least 2% of the page area.
 
-Si un documento no tiene tablas reales, es normal y esperable que la aplicación informe "0 tablas encontradas": no fuerza a encontrar algo que no está.
+If a document has no real tables, it is normal and expected for the application to report "0 tablas encontradas" ("0 tables found"): it does not force finding something that is not there.
 
-## Cómo funciona
+## How it works
 
-1. **Conversión a imágenes**: cada página del PDF (o el rango indicado) se convierte en una imagen a 300 ppp con `pdf2image`/Poppler.
-2. **OCR página a página**: Tesseract extrae el texto de cada imagen.
-3. **Extracción de tablas** (opcional, con `--tablas`): `pdf_table_extractor.py` detecta si el PDF es digital o escaneado y extrae las tablas asociadas a un caption ("Tabla 1", "Table 2"...), insertándolas junto a su caption en el Markdown final.
-4. **Corrección de errores**: `ocr_postprocess_mejorado.corregir_texto()` limpia errores típicos del OCR en griego clásico y en el texto académico circundante.
-5. **Guardado**: el texto corregido de todas las páginas se une (con separador `--- Página N ---`) y se guarda en UTF-8 como `.md`.
+1. **Conversion to images**: each page of the PDF (or the given range) is converted into an image at 300 dpi with `pdf2image`/Poppler.
+2. **Page-by-page OCR**: Tesseract extracts the text from each image.
+3. **Table extraction** (optional, with `--tables`): `pdf_table_extractor.py` detects whether the PDF is digital or scanned and extracts the tables associated with a caption ("Tabla 1", "Table 2"...), inserting them next to their caption in the final Markdown.
+4. **Error correction**: `ocr_postprocess.fix_text()` cleans up errors typical of OCR on Classical Greek and the surrounding academic text.
+5. **Saving**: the corrected text of all pages is joined (with a `--- Page N ---` separator) and saved as UTF-8 `.md`.
 
-## Sobre el postprocesador de OCR
+## About the OCR post-processor
 
-`ocr_postprocess_mejorado.py` separa las reglas de corrección en tres grupos:
+`ocr_postprocess.py` splits the correction rules into three groups:
 
-- `REGEX_RULES_GENERAL`: reglas genéricas y reutilizables (sigma final, ligaduras, guiones de fin de línea, notación epigráfica Leiden...).
-- `REGEX_RULES_CORPUS_ESPECIFICO`: correcciones ad hoc aprendidas de documentos concretos ya procesados (nombres propios, fragmentos de palabras muy específicos). No se aplican por defecto; actívalas con `corregir_texto(texto, incluir_corpus_especifico=True)` solo si vas a reprocesar el mismo corpus de siempre.
-- `REGEX_RULES_GRIEGO`: reglas específicas para bloques de texto en griego.
+- `REGEX_RULES_GENERAL`: generic, reusable rules (final sigma, ligatures, end-of-line hyphens, Leiden epigraphic notation...).
+- `REGEX_RULES_CORPUS_SPECIFIC`: ad hoc corrections learned from specific documents already processed (proper nouns, very specific word fragments). Not applied by default; enable them with `fix_text(text, include_corpus_specific=True)` only if you are reprocessing the same corpus as always.
+- `REGEX_RULES_GREEK`: rules specific to Greek text blocks.
 
-Se puede editar para incluir errores observados en el OCR siguiendo los patrones descritos en el propio documento.
+## Known limitations
 
-## Limitaciones conocidas
-
-- La extracción de tablas en PDFs escaneados asume tablas con bordes explícitos (líneas horizontales y verticales visibles); tablas sin bordes no se detectan.
-- `os.startfile()` (apertura automática del `.md`) es específico de Windows; en otros sistemas se usa `open`/`xdg-open` como alternativa best-effort.
+- Table extraction on scanned PDFs assumes tables with explicit borders (visible horizontal and vertical lines); borderless tables are not detected.
+- `os.startfile()` (automatic opening of the `.md` file) is Windows-specific; on other systems `open`/`xdg-open` is used as a best-effort alternative.

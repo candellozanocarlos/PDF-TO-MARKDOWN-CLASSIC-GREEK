@@ -1,37 +1,37 @@
 r"""
 config.py
 ---------
-Configuración centralizada de rutas externas (Tesseract, Poppler).
+Centralized configuration of external tool paths (Tesseract, Poppler).
 
-En vez de escribir estas rutas dentro de cada script, se leen aquí desde
-variables de entorno. Así, para usar el proyecto en otro equipo basta con
-definir las variables antes de ejecutar (o crear un archivo `.env`), sin
-tocar ningún archivo .py.
+Instead of hardcoding these paths inside every script, they are read here
+from environment variables. This way, using the project on another machine
+only requires setting the variables before running (or creating an `.env`
+file), without touching any .py file.
 
-Uso en Windows (PowerShell), antes de ejecutar el script:
+Usage on Windows (PowerShell), before running the script:
 
     $env:TESSERACT_CMD = "C:\Program Files\Tesseract-OCR\tesseract.exe"
     $env:POPPLER_PATH  = "C:\poppler\Library\bin"
 
-Uso en Linux/macOS, si necesitas forzar una ruta concreta:
+Usage on Linux/macOS, if you need to force a specific path:
 
     export TESSERACT_CMD=/usr/bin/tesseract
     export POPPLER_PATH=/usr/bin
 
-Nota sobre macOS y las apps empaquetadas (PyInstaller / doble clic desde
-Finder): una app abierta con doble clic NO hereda el PATH que tiene tu
-Terminal (el que configura Homebrew en tu .zshrc/.bash_profile). Por eso
-"brew install tesseract poppler" deja los programas instalados y
-funcionando perfectamente desde la Terminal, pero la app igualmente no los
-encuentra si solo confiamos en el PATH. Para evitarlo, además del PATH,
-también se buscan explícitamente las rutas de instalación típicas de
-Homebrew (Apple Silicon y Intel) y MacPorts.
+Note about macOS and packaged apps (PyInstaller / double-click from
+Finder): an app opened by double-clicking does NOT inherit the PATH that
+your Terminal has (the one Homebrew configures in your .zshrc/.bash_profile).
+That is why "brew install tesseract poppler" leaves the programs installed
+and working perfectly from the Terminal, yet the app still cannot find them
+if we only rely on PATH. To avoid this, in addition to PATH, the typical
+Homebrew (Apple Silicon and Intel) and MacPorts installation directories
+are also searched explicitly.
 
-Si no se definen variables de entorno ni se encuentra nada en esas rutas,
-se usan los valores por defecto de abajo (los del equipo original de
-desarrollo en Windows). Edítalos aquí si prefieres no usar variables de
-entorno, pero entonces evita subir tus rutas personales a un repositorio
-público.
+If no environment variables are set and nothing is found in those
+directories, the defaults below are used (the ones from the original
+development machine, on Windows). Edit them here if you prefer not to use
+environment variables, but then avoid pushing your personal paths to a
+public repository.
 """
 
 from __future__ import annotations
@@ -45,39 +45,40 @@ from typing import Optional
 import pytesseract
 
 # ---------------------------------------------------------------------------
-# Rutas configurables
+# Configurable paths
 # ---------------------------------------------------------------------------
 
 DEFAULT_TESSERACT_CMD_WINDOWS = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 DEFAULT_POPPLER_PATH_WINDOWS = r"C:\poppler\Library\bin"
 
-# Carpetas donde Homebrew/MacPorts suelen dejar sus binarios en macOS.
-# /opt/homebrew/bin  -> Homebrew en Mac con chip Apple (M1/M2/M3...)
-# /usr/local/bin      -> Homebrew en Mac con chip Intel
+# Directories where Homebrew/MacPorts typically install their binaries on
+# macOS.
+# /opt/homebrew/bin  -> Homebrew on Apple silicon Macs (M1/M2/M3...)
+# /usr/local/bin      -> Homebrew on Intel Macs
 # /opt/local/bin       -> MacPorts
-CARPETAS_MACOS_CANDIDATAS = ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"]
+CANDIDATE_MACOS_DIRECTORIES = ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"]
 
 
-def _buscar_ejecutable(nombre: str) -> Optional[str]:
+def _find_executable(name: str) -> Optional[str]:
     """
-    Busca un ejecutable por nombre en, por este orden: el PATH heredado del
-    proceso (shutil.which), y en macOS además en las rutas típicas de
-    Homebrew/MacPorts (que un proceso lanzado con doble clic desde Finder
-    no ve, aunque estén perfectamente instaladas).
+    Looks up an executable by name, in this order: the process's inherited
+    PATH (shutil.which), and on macOS also the typical Homebrew/MacPorts
+    directories (which a process launched by double-clicking from Finder
+    does not see, even if the tool is perfectly installed).
     """
-    encontrado = shutil.which(nombre)
-    if encontrado:
-        return encontrado
+    found = shutil.which(name)
+    if found:
+        return found
     if sys.platform == "darwin":
-        for carpeta in CARPETAS_MACOS_CANDIDATAS:
-            candidato = Path(carpeta) / nombre
-            if candidato.is_file():
-                return str(candidato)
+        for directory in CANDIDATE_MACOS_DIRECTORIES:
+            candidate = Path(directory) / name
+            if candidate.is_file():
+                return str(candidate)
     return None
 
 
 TESSERACT_CMD = os.environ.get("TESSERACT_CMD") or (
-    DEFAULT_TESSERACT_CMD_WINDOWS if os.name == "nt" else (_buscar_ejecutable("tesseract") or "tesseract")
+    DEFAULT_TESSERACT_CMD_WINDOWS if os.name == "nt" else (_find_executable("tesseract") or "tesseract")
 )
 
 if os.environ.get("POPPLER_PATH"):
@@ -85,68 +86,72 @@ if os.environ.get("POPPLER_PATH"):
 elif os.name == "nt":
     POPPLER_PATH = DEFAULT_POPPLER_PATH_WINDOWS
 else:
-    # En Linux/macOS, deducimos la carpeta a partir de dónde se encontró
-    # pdftoppm (PATH normal, o las rutas de Homebrew/MacPorts de arriba).
-    _pdftoppm = _buscar_ejecutable("pdftoppm")
+    # On Linux/macOS, derive the directory from wherever pdftoppm was found
+    # (normal PATH, or the Homebrew/MacPorts directories above).
+    _pdftoppm = _find_executable("pdftoppm")
     POPPLER_PATH = str(Path(_pdftoppm).parent) if _pdftoppm else None
 
-# Aplica la ruta de Tesseract una única vez, para todo el proyecto.
+# Apply the Tesseract path once, for the whole project.
 pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
 
 
-def _localizar_poppler() -> Optional[str]:
+def _locate_poppler() -> Optional[str]:
     """
-    Devuelve la ruta al ejecutable 'pdftoppm' de Poppler (el que usa
-    pdf2image), buscando primero en POPPLER_PATH y si no mediante
-    _buscar_ejecutable() (PATH + rutas típicas de Homebrew/MacPorts en
-    macOS). None si no se encuentra en ningún sitio.
+    Returns the path to Poppler's 'pdftoppm' executable (the one pdf2image
+    uses), looking first in POPPLER_PATH and otherwise via
+    _find_executable() (PATH + typical Homebrew/MacPorts directories on
+    macOS). None if it cannot be found anywhere.
     """
-    nombre = "pdftoppm.exe" if os.name == "nt" else "pdftoppm"
+    name = "pdftoppm.exe" if os.name == "nt" else "pdftoppm"
     if POPPLER_PATH:
-        candidato = os.path.join(POPPLER_PATH, nombre)
-        if os.path.isfile(candidato):
-            return candidato
-    return _buscar_ejecutable(nombre)
+        candidate = os.path.join(POPPLER_PATH, name)
+        if os.path.isfile(candidate):
+            return candidate
+    return _find_executable(name)
 
 
-def verificar_dependencias_externas() -> list[str]:
+def check_external_dependencies() -> list[str]:
     """
-    Comprueba que Tesseract y Poppler están localizables. Devuelve una lista
-    de mensajes de aviso (vacía si todo está en orden).
+    Checks that Tesseract and Poppler can be located. Returns a list of
+    warning messages (empty if everything is in order).
 
-    Importante: esta función NO imprime nada por su cuenta. En las
-    aplicaciones de escritorio empaquetadas con PyInstaller en modo
-    --windowed no hay consola visible, así que un aviso impreso por
-    print()/stderr se pierde sin que nadie lo vea. Quien llame a esta
-    función debe mostrar los mensajes devueltos por su propia interfaz
-    (log de la GUI, print() en el caso del CLI, etc.).
+    Important: this function does NOT print anything on its own. Desktop
+    applications packaged with PyInstaller in --windowed mode have no
+    visible console, so a warning printed via print()/stderr is lost
+    without anyone seeing it. Whoever calls this function must display the
+    returned messages through its own interface (GUI log, print() for the
+    CLI, etc.).
+
+    Note: the warning strings below are intentionally kept in Spanish, since
+    they are shown as-is in the desktop apps' log window, which is aimed at
+    Spanish-speaking, non-technical users.
     """
-    avisos: list[str] = []
+    warnings: list[str] = []
 
     if not shutil.which(TESSERACT_CMD) and not os.path.isfile(TESSERACT_CMD):
         if sys.platform == "darwin":
-            instrucciones = "Instálalo con Homebrew: brew install tesseract tesseract-lang"
+            instructions = "Instálalo con Homebrew: brew install tesseract tesseract-lang"
         elif os.name == "nt":
-            instrucciones = (
+            instructions = (
                 "Instálalo desde https://github.com/UB-Mannheim/tesseract/wiki "
                 "y define la variable de entorno TESSERACT_CMD con la ruta al .exe"
             )
         else:
-            instrucciones = "Instálalo con el gestor de paquetes de tu sistema (p. ej. apt install tesseract-ocr)"
-        avisos.append(
-            f"No se encuentra Tesseract OCR (ruta probada: '{TESSERACT_CMD}'). {instrucciones}"
+            instructions = "Instálalo con el gestor de paquetes de tu sistema (p. ej. apt install tesseract-ocr)"
+        warnings.append(
+            f"No se encuentra Tesseract OCR (ruta probada: '{TESSERACT_CMD}'). {instructions}"
         )
 
-    if _localizar_poppler() is None:
+    if _locate_poppler() is None:
         if sys.platform == "darwin":
-            instrucciones = "Instálalo con Homebrew: brew install poppler"
+            instructions = "Instálalo con Homebrew: brew install poppler"
         elif os.name == "nt":
-            instrucciones = (
+            instructions = (
                 "Descárgalo de https://github.com/oschwartz10612/poppler-windows/releases "
                 "y define la variable de entorno POPPLER_PATH con la carpeta 'bin' descomprimida"
             )
         else:
-            instrucciones = "Instálalo con el gestor de paquetes de tu sistema (p. ej. apt install poppler-utils)"
-        avisos.append(f"No se encuentra Poppler (necesario para leer el PDF). {instrucciones}")
+            instructions = "Instálalo con el gestor de paquetes de tu sistema (p. ej. apt install poppler-utils)"
+        warnings.append(f"No se encuentra Poppler (necesario para leer el PDF). {instructions}")
 
-    return avisos
+    return warnings

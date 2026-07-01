@@ -1,6 +1,6 @@
 cff-version: 1.2.0
-message: "Si usas este software en tu investigación, por favor cítalo con los siguientes metadatos."
-title: "PDF-TO-MARKDOWN-CLASSIC-GREEK: conversión de PDF a Markdown con OCR y corrección automática para griego clásico"
+message: "If you use this software in your research, please cite it using the following metadata."
+title: "PDF-TO-MARKDOWN-CLASSIC-GREEK: OCR-based PDF-to-Markdown conversion with automatic post-processing for Classical Greek"
 type: software
 authors:
   - family-names: "Candel Lozano"
@@ -13,18 +13,18 @@ date-released: 2026-07-01
 identifiers:
   - type: doi
     value: "10.5281/zenodo.21104928"
-    description: "DOI de la versión v1.4 en Zenodo"
+    description: "DOI of version v1.4 on Zenodo (Spanish-language metadata; superseded by later, English-language versions)"
 keywords:
   - OCR
-  - "griego clásico"
-  - epigrafía
-  - "filología clásica"
-  - "humanidades digitales"
-  - "reconocimiento óptico de caracteres"
+  - "classical Greek"
+  - epigraphy
+  - "classical philology"
+  - "digital humanities"
+  - "optical character recognition"
 abstract: >-
-  Conjunto de scripts y aplicaciones de escritorio para convertir documentos
-  PDF con texto en griego clásico (y otros idiomas académicos) a formato
-  Markdown mediante reconocimiento óptico de caracteres (OCR), con un
-  postprocesador especializado que corrige errores típicos del OCR en
-  griego politónico y notación epigráfica. Incluye extracción opcional de
-  tablas con detección estricta para evitar falsos positivos.
+  A set of scripts and desktop applications for converting PDF documents
+  containing Classical Greek text (and other academic languages) into
+  Markdown via optical character recognition (OCR), with a specialized
+  post-processor that corrects errors typical of OCR on polytonic Greek
+  and epigraphic notation. Includes optional table extraction with strict
+  detection criteria to avoid false positives.

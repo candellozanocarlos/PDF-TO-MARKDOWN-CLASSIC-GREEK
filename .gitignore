@@ -1,12 +1,13 @@
 __pycache__/
 *.pyc
 markdown/
-salida_prueba*/
+test_output*/
 *.md
 !README.md
 
-# Si en el futuro añades un config.local.py con rutas propias, no lo subas:
-config.local.py
 build/
 dist/
 *.spec
+
+# If you later add a config.local.py with your own paths, don't commit it:
+config.local.py

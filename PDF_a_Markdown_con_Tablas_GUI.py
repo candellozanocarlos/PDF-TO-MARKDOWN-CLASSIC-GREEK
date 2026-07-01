@@ -1,25 +1,29 @@
 """
 PDF_a_Markdown_con_Tablas_GUI.py
 ----------------------------------
-Igual que PDF_a_Markdown_GUI.py, pero además extrae las tablas del documento
-(digital o escaneado) y las inserta en el Markdown junto a su pie ("Table 1",
-"Tabla 1"...).
+Same as PDF_a_Markdown_GUI.py, but it also extracts the tables from the
+document (digital or scanned) and inserts them into the Markdown next to
+their caption ("Table 1", "Tabla 1"...).
 
-La detección de tablas es deliberadamente ESTRICTA para evitar falsos
-positivos (recuadros decorativos, figuras, cabeceras con marco). Una
-estructura solo se considera tabla si cumple TODO lo siguiente:
+Note on language: the code (identifiers, comments) is in English, but the
+text actually shown inside the window (labels, buttons, log messages) is
+kept in Spanish, since this app is meant for non-technical, Spanish-
+speaking colleagues.
 
-  - La página contiene un pie explícito de tabla (no de figura): "Table 1",
-    "Tabla 1", "Tab. 1", "Cuadro 1", "Tableau 1"...
-  - La rejilla tiene al menos 3 filas y 2 columnas (PDF digital: además,
-    al menos un 75 % de las filas deben compartir el mismo número de
-    columnas).
-  - Al menos la mitad de las celdas contienen texto real tras el OCR
-    (descarta recuadros vacíos o mal detectados).
+Table detection is deliberately STRICT to avoid false positives
+(decorative boxes, figures, framed headers). A structure is only
+considered a table if ALL of the following hold:
 
-Por eso, si un documento no tiene tablas "de verdad", esta aplicación no
-inventará ninguna: es normal y esperable ver "0 tablas encontradas" en
-documentos que son solo texto corrido con figuras.
+  - The page contains an explicit table caption (not a figure caption):
+    "Table 1", "Tabla 1", "Tab. 1", "Cuadro 1", "Tableau 1"...
+  - The grid has at least 3 rows and 2 columns (digital PDF: additionally,
+    at least 75% of rows must share the same number of columns).
+  - At least half of the cells contain real text after OCR (discards
+    empty or misdetected boxes).
+
+Because of this, if a document has no real tables, it is normal and
+expected to see "0 tablas encontradas" ("0 tables found"): it does not
+force finding something that is not there.
 """
 
 from __future__ import annotations
@@ -29,14 +33,14 @@ from pathlib import Path
 import customtkinter as ctk
 
 from gui_common import (
-    COLOR_TEXTO_SECUNDARIO,
-    MotorConversion,
-    abrir_archivo,
-    abrir_carpeta,
-    crear_selector_archivo,
-    crear_selector_carpeta,
-    crear_selector_idiomas,
-    obtener_lang_string,
+    SECONDARY_TEXT_COLOR,
+    ConversionEngine,
+    open_file,
+    open_folder,
+    create_file_selector,
+    create_folder_selector,
+    create_language_selector,
+    get_lang_string,
 )
 
 
@@ -47,130 +51,130 @@ class App(ctk.CTk):
         self.geometry("680x780")
         self.minsize(600, 680)
 
-        self.motor = MotorConversion()
-        self.ultimo_output: Path | None = None
-        self.tablas_encontradas: list[tuple[int, int]] = []  # (num_pagina, n_tablas)
+        self.engine = ConversionEngine()
+        self.last_output: Path | None = None
+        self.tables_found: list[tuple[int, int]] = []  # (page_num, n_tables)
 
-        self.var_pdf = ctk.StringVar()
-        self.var_output_dir = ctk.StringVar(value=str(Path.home() / "Documents" / "markdown"))
-        self.var_rango_activo = ctk.BooleanVar(value=False)
-        self.var_pag_inicio = ctk.StringVar()
-        self.var_pag_fin = ctk.StringVar()
+        self.pdf_var = ctk.StringVar()
+        self.output_dir_var = ctk.StringVar(value=str(Path.home() / "Documents" / "markdown"))
+        self.page_range_active_var = ctk.BooleanVar(value=False)
+        self.start_page_var = ctk.StringVar()
+        self.end_page_var = ctk.StringVar()
 
-        self._construir_ui()
-        self.after(150, self._consumir_cola)
+        self._build_ui()
+        self.after(150, self._poll_queue)
 
     # ------------------------------------------------------------------ UI
-    def _construir_ui(self) -> None:
-        contenedor = ctk.CTkFrame(self, fg_color="transparent")
-        contenedor.pack(fill="both", expand=True, padx=26, pady=22)
+    def _build_ui(self) -> None:
+        container = ctk.CTkFrame(self, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=26, pady=22)
 
-        # --- Cabecera ---
-        cabecera = ctk.CTkFrame(contenedor, corner_radius=14)
-        cabecera.pack(fill="x", pady=(0, 18))
+        # --- Header ---
+        header = ctk.CTkFrame(container, corner_radius=14)
+        header.pack(fill="x", pady=(0, 18))
         ctk.CTkLabel(
-            cabecera, text="📊  PDF a Markdown  ·  con tablas",
+            header, text="📊  PDF a Markdown  ·  con tablas",
             font=ctk.CTkFont(size=22, weight="bold"),
         ).pack(anchor="w", padx=18, pady=(14, 2))
         ctk.CTkLabel(
-            cabecera,
+            header,
             text="Extrae también las tablas del documento con detección estricta:\n"
                  "solo se extraen tablas con pie explícito y rejilla real (evita falsos positivos).",
-            text_color=COLOR_TEXTO_SECUNDARIO, justify="left",
+            text_color=SECONDARY_TEXT_COLOR, justify="left",
         ).pack(anchor="w", padx=18, pady=(0, 14))
 
-        # --- Tarjeta de configuración ---
-        tarjeta = ctk.CTkFrame(contenedor, corner_radius=14)
-        tarjeta.pack(fill="x", pady=(0, 16))
-        interior = ctk.CTkFrame(tarjeta, fg_color="transparent")
-        interior.pack(fill="x", padx=18, pady=16)
+        # --- Settings card ---
+        card = ctk.CTkFrame(container, corner_radius=14)
+        card.pack(fill="x", pady=(0, 16))
+        inner = ctk.CTkFrame(card, fg_color="transparent")
+        inner.pack(fill="x", padx=18, pady=16)
 
-        crear_selector_archivo(
-            interior,
+        create_file_selector(
+            inner,
             "1.  Selecciona el PDF",
-            self.var_pdf,
+            self.pdf_var,
             filetypes=[("Archivos PDF", "*.pdf")],
         ).pack(fill="x", pady=(0, 16))
 
-        crear_selector_carpeta(
-            interior, "2.  Carpeta donde guardar el .md", self.var_output_dir
+        create_folder_selector(
+            inner, "2.  Carpeta donde guardar el .md", self.output_dir_var
         ).pack(fill="x", pady=(0, 16))
 
-        frame_idiomas, self.vars_idiomas = crear_selector_idiomas(interior)
-        frame_idiomas.pack(fill="x", pady=(0, 16))
+        lang_frame, self.lang_vars = create_language_selector(inner)
+        lang_frame.pack(fill="x", pady=(0, 16))
 
-        # Rango de páginas opcional
+        # Optional page range
         ctk.CTkCheckBox(
-            interior, text="Convertir solo un rango de páginas",
-            variable=self.var_rango_activo, command=self._alternar_rango,
+            inner, text="Convertir solo un rango de páginas",
+            variable=self.page_range_active_var, command=self._toggle_page_range,
         ).pack(anchor="w", pady=(0, 6))
 
-        self.fila_paginas = ctk.CTkFrame(interior, fg_color="transparent")
-        self.fila_paginas.pack(fill="x")
-        ctk.CTkLabel(self.fila_paginas, text="Desde página:").pack(side="left")
-        self.entry_inicio = ctk.CTkEntry(self.fila_paginas, textvariable=self.var_pag_inicio, width=70, state="disabled")
-        self.entry_inicio.pack(side="left", padx=(6, 18))
-        ctk.CTkLabel(self.fila_paginas, text="Hasta página:").pack(side="left")
-        self.entry_fin = ctk.CTkEntry(self.fila_paginas, textvariable=self.var_pag_fin, width=70, state="disabled")
-        self.entry_fin.pack(side="left", padx=(6, 0))
+        self.page_range_row = ctk.CTkFrame(inner, fg_color="transparent")
+        self.page_range_row.pack(fill="x")
+        ctk.CTkLabel(self.page_range_row, text="Desde página:").pack(side="left")
+        self.start_page_entry = ctk.CTkEntry(self.page_range_row, textvariable=self.start_page_var, width=70, state="disabled")
+        self.start_page_entry.pack(side="left", padx=(6, 18))
+        ctk.CTkLabel(self.page_range_row, text="Hasta página:").pack(side="left")
+        self.end_page_entry = ctk.CTkEntry(self.page_range_row, textvariable=self.end_page_var, width=70, state="disabled")
+        self.end_page_entry.pack(side="left", padx=(6, 0))
 
-        # --- Botón de conversión ---
-        self.boton_convertir = ctk.CTkButton(
-            contenedor, text="✨  Convertir a Markdown (con tablas)", height=46,
-            font=ctk.CTkFont(size=15, weight="bold"), command=self._on_convertir,
+        # --- Convert button ---
+        self.convert_button = ctk.CTkButton(
+            container, text="✨  Convertir a Markdown (con tablas)", height=46,
+            font=ctk.CTkFont(size=15, weight="bold"), command=self._on_convert,
         )
-        self.boton_convertir.pack(fill="x", pady=(0, 12))
+        self.convert_button.pack(fill="x", pady=(0, 12))
 
-        self.barra_progreso = ctk.CTkProgressBar(contenedor, height=10)
-        self.barra_progreso.set(0)
-        self.barra_progreso.pack(fill="x", pady=(0, 12))
+        self.progress_bar = ctk.CTkProgressBar(container, height=10)
+        self.progress_bar.set(0)
+        self.progress_bar.pack(fill="x", pady=(0, 12))
 
-        # --- Panel de resumen de tablas ---
-        self.panel_tablas = ctk.CTkFrame(contenedor, corner_radius=12)
-        self.panel_tablas.pack(fill="x", pady=(0, 12))
-        self.label_resumen_tablas = ctk.CTkLabel(
-            self.panel_tablas, text="📋  Todavía no se ha buscado ninguna tabla.",
+        # --- Table summary panel ---
+        self.tables_panel = ctk.CTkFrame(container, corner_radius=12)
+        self.tables_panel.pack(fill="x", pady=(0, 12))
+        self.tables_summary_label = ctk.CTkLabel(
+            self.tables_panel, text="📋  Todavía no se ha buscado ninguna tabla.",
             anchor="w", justify="left",
         )
-        self.label_resumen_tablas.pack(fill="x", padx=14, pady=10)
+        self.tables_summary_label.pack(fill="x", padx=14, pady=10)
 
-        # --- Registro ---
-        ctk.CTkLabel(contenedor, text="Registro de la conversión", anchor="w",
+        # --- Log ---
+        ctk.CTkLabel(container, text="Registro de la conversión", anchor="w",
                      font=ctk.CTkFont(weight="bold")).pack(fill="x")
-        self.caja_log = ctk.CTkTextbox(contenedor, height=140, state="disabled")
-        self.caja_log.pack(fill="both", expand=True, pady=(6, 14))
+        self.log_box = ctk.CTkTextbox(container, height=140, state="disabled")
+        self.log_box.pack(fill="both", expand=True, pady=(6, 14))
 
-        self.fila_final = ctk.CTkFrame(contenedor, fg_color="transparent")
-        self.fila_final.pack(fill="x")
-        self.boton_abrir = ctk.CTkButton(
-            self.fila_final, text="📄  Abrir el .md generado", state="disabled",
-            command=self._abrir_resultado,
+        self.bottom_row = ctk.CTkFrame(container, fg_color="transparent")
+        self.bottom_row.pack(fill="x")
+        self.open_file_button = ctk.CTkButton(
+            self.bottom_row, text="📄  Abrir el .md generado", state="disabled",
+            command=self._open_result,
         )
-        self.boton_abrir.pack(side="left")
-        self.boton_carpeta = ctk.CTkButton(
-            self.fila_final, text="📂  Abrir carpeta", state="disabled",
-            command=self._abrir_carpeta, fg_color="#8A6D4E", hover_color="#6E5540",
+        self.open_file_button.pack(side="left")
+        self.open_folder_button = ctk.CTkButton(
+            self.bottom_row, text="📂  Abrir carpeta", state="disabled",
+            command=self._open_output_folder, fg_color="#8A6D4E", hover_color="#6E5540",
         )
-        self.boton_carpeta.pack(side="left", padx=(10, 0))
+        self.open_folder_button.pack(side="left", padx=(10, 0))
 
-    def _alternar_rango(self) -> None:
-        estado = "normal" if self.var_rango_activo.get() else "disabled"
-        self.entry_inicio.configure(state=estado)
-        self.entry_fin.configure(state=estado)
+    def _toggle_page_range(self) -> None:
+        state = "normal" if self.page_range_active_var.get() else "disabled"
+        self.start_page_entry.configure(state=state)
+        self.end_page_entry.configure(state=state)
 
-    # -------------------------------------------------------------- lógica
-    def _log(self, texto: str) -> None:
-        self.caja_log.configure(state="normal")
-        self.caja_log.insert("end", texto + "\n")
-        self.caja_log.see("end")
-        self.caja_log.configure(state="disabled")
+    # -------------------------------------------------------------- logic
+    def _log(self, text: str) -> None:
+        self.log_box.configure(state="normal")
+        self.log_box.insert("end", text + "\n")
+        self.log_box.see("end")
+        self.log_box.configure(state="disabled")
 
-    def _on_convertir(self) -> None:
-        if self.motor.en_curso():
+    def _on_convert(self) -> None:
+        if self.engine.is_running():
             return
 
-        pdf_path = self.var_pdf.get().strip()
-        output_dir = self.var_output_dir.get().strip()
+        pdf_path = self.pdf_var.get().strip()
+        output_dir = self.output_dir_var.get().strip()
 
         if not pdf_path:
             self._log("⚠ Selecciona primero un archivo PDF.")
@@ -182,92 +186,92 @@ class App(ctk.CTk):
             self._log("⚠ Indica una carpeta de salida.")
             return
 
-        lang = obtener_lang_string(self.vars_idiomas)
+        lang = get_lang_string(self.lang_vars)
         if lang is None:
             self._log("⚠ Marca al menos un idioma antes de convertir.")
             return
 
-        pagina_inicio = pagina_fin = None
-        if self.var_rango_activo.get():
+        start_page = end_page = None
+        if self.page_range_active_var.get():
             try:
-                pagina_inicio = int(self.var_pag_inicio.get())
-                pagina_fin = int(self.var_pag_fin.get())
-                if pagina_inicio < 1 or pagina_fin < pagina_inicio:
+                start_page = int(self.start_page_var.get())
+                end_page = int(self.end_page_var.get())
+                if start_page < 1 or end_page < start_page:
                     raise ValueError
             except ValueError:
                 self._log("⚠ El rango de páginas no es válido (revisa 'Desde' y 'Hasta').")
                 return
 
-        self.caja_log.configure(state="normal")
-        self.caja_log.delete("1.0", "end")
-        self.caja_log.configure(state="disabled")
-        self.barra_progreso.set(0)
-        self.tablas_encontradas = []
-        self.label_resumen_tablas.configure(text="🔍  Buscando tablas...")
-        self.boton_convertir.configure(state="disabled", text="Convirtiendo...")
-        self.boton_abrir.configure(state="disabled")
-        self.boton_carpeta.configure(state="disabled")
+        self.log_box.configure(state="normal")
+        self.log_box.delete("1.0", "end")
+        self.log_box.configure(state="disabled")
+        self.progress_bar.set(0)
+        self.tables_found = []
+        self.tables_summary_label.configure(text="🔍  Buscando tablas...")
+        self.convert_button.configure(state="disabled", text="Convirtiendo...")
+        self.open_file_button.configure(state="disabled")
+        self.open_folder_button.configure(state="disabled")
 
-        self.motor.iniciar(
+        self.engine.start(
             pdf_path=Path(pdf_path),
             output_dir=Path(output_dir),
             lang=lang,
-            con_tablas=True,
-            pagina_inicio=pagina_inicio,
-            pagina_fin=pagina_fin,
+            with_tables=True,
+            start_page=start_page,
+            end_page=end_page,
         )
 
-    def _actualizar_resumen_tablas(self) -> None:
-        if not self.tablas_encontradas:
-            self.label_resumen_tablas.configure(
+    def _update_tables_summary(self) -> None:
+        if not self.tables_found:
+            self.tables_summary_label.configure(
                 text="📋  0 tablas encontradas (con los criterios estrictos de detección)."
             )
             return
-        total = sum(n for _, n in self.tablas_encontradas)
-        paginas = ", ".join(str(p) for p, _ in sorted(self.tablas_encontradas))
-        self.label_resumen_tablas.configure(
-            text=f"📋  {total} tabla(s) encontrada(s) en la(s) página(s): {paginas}"
+        total = sum(n for _, n in self.tables_found)
+        pages = ", ".join(str(p) for p, _ in sorted(self.tables_found))
+        self.tables_summary_label.configure(
+            text=f"📋  {total} tabla(s) encontrada(s) en la(s) página(s): {pages}"
         )
 
-    def _consumir_cola(self) -> None:
+    def _poll_queue(self) -> None:
         try:
             while True:
-                mensaje = self.motor.cola.get_nowait()
-                tipo = mensaje[0]
+                message = self.engine.queue.get_nowait()
+                msg_type = message[0]
 
-                if tipo == "log":
-                    self._log(mensaje[1])
-                elif tipo == "progreso":
-                    actual, total = mensaje[1], mensaje[2]
-                    self.barra_progreso.set(actual / total if total else 0)
-                elif tipo == "tabla_encontrada":
-                    num_pag, n_tablas = mensaje[1], mensaje[2]
-                    self.tablas_encontradas.append((num_pag, n_tablas))
-                    self._actualizar_resumen_tablas()
-                elif tipo == "hecho":
-                    ruta = Path(mensaje[1])
-                    self.ultimo_output = ruta
-                    self._actualizar_resumen_tablas()
-                    self._log(f"\n✅ Conversión terminada.\nArchivo guardado en:\n{ruta}")
-                    self.boton_convertir.configure(state="normal", text="✨  Convertir a Markdown (con tablas)")
-                    self.boton_abrir.configure(state="normal")
-                    self.boton_carpeta.configure(state="normal")
-                    self.barra_progreso.set(1)
-                elif tipo == "error":
-                    self._log(f"\n❌ Ha ocurrido un error:\n{mensaje[1]}")
-                    self.boton_convertir.configure(state="normal", text="✨  Convertir a Markdown (con tablas)")
+                if msg_type == "log":
+                    self._log(message[1])
+                elif msg_type == "progress":
+                    current, total = message[1], message[2]
+                    self.progress_bar.set(current / total if total else 0)
+                elif msg_type == "table_found":
+                    page_num, n_tables = message[1], message[2]
+                    self.tables_found.append((page_num, n_tables))
+                    self._update_tables_summary()
+                elif msg_type == "done":
+                    path = Path(message[1])
+                    self.last_output = path
+                    self._update_tables_summary()
+                    self._log(f"\n✅ Conversión terminada.\nArchivo guardado en:\n{path}")
+                    self.convert_button.configure(state="normal", text="✨  Convertir a Markdown (con tablas)")
+                    self.open_file_button.configure(state="normal")
+                    self.open_folder_button.configure(state="normal")
+                    self.progress_bar.set(1)
+                elif msg_type == "error":
+                    self._log(f"\n❌ Ha ocurrido un error:\n{message[1]}")
+                    self.convert_button.configure(state="normal", text="✨  Convertir a Markdown (con tablas)")
         except Exception:
             pass
         finally:
-            self.after(150, self._consumir_cola)
+            self.after(150, self._poll_queue)
 
-    def _abrir_resultado(self) -> None:
-        if self.ultimo_output:
-            abrir_archivo(self.ultimo_output)
+    def _open_result(self) -> None:
+        if self.last_output:
+            open_file(self.last_output)
 
-    def _abrir_carpeta(self) -> None:
-        if self.ultimo_output:
-            abrir_carpeta(self.ultimo_output.parent)
+    def _open_output_folder(self) -> None:
+        if self.last_output:
+            open_folder(self.last_output.parent)
 
 
 if __name__ == "__main__":
