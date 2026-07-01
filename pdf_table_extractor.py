@@ -27,12 +27,40 @@ from PIL import Image
 import config  # noqa: F401  (aplica TESSERACT_CMD al importarse; evita duplicar la ruta aquí)
 from ocr_postprocess_mejorado import corregir_texto
 
+# Coincide con una celda que es solo un número (con o sin decimales). Estas
+# celdas NO deben pasar por el pipeline general de corregir_texto(), porque
+# incluye una regla pensada para eliminar números de página sueltos
+# (patrón "^\s*\d{1,4}\s*$") que, aplicada al contenido de una celda,
+# borraría cualquier dato puramente numérico de la tabla (edades, años,
+# cantidades...). Ese contexto (texto corrido de página vs. celda aislada)
+# es justamente la diferencia que la regla no puede distinguir por sí sola.
+_CELDA_SOLO_NUMERO = re.compile(r"^\s*\d+(?:[.,]\d+)?\s*$")
+
+
+def _corregir_celda(texto: Optional[str]) -> str:
+    """Aplica corregir_texto() a una celda, salvo que sea un número aislado."""
+    if not texto:
+        return ""
+    if _CELDA_SOLO_NUMERO.match(texto):
+        return texto.strip()
+    return corregir_texto(texto)
+
 # ---------------------------------------------------------------------------
-# Patrón de pie de tabla / figura (multilingüe)
-# Solo se extrae la tabla si la página contiene uno de estos pies.
+# Patrón de pie de TABLA (multilingüe). Solo se busca una tabla si la página
+# contiene uno de estos pies. Los pies de figura ("Figure", "Fig.", "Abb.",
+# "Tav.") se excluyen deliberadamente: una figura no es una tabla, e incluirlos
+# generaba falsos positivos (el extractor intentaba leer una tabla en páginas
+# que en realidad tenían un mapa o una fotografía).
 # ---------------------------------------------------------------------------
 CAPTION_RE = re.compile(
-    r"^\s*(?:Table|Tab\.?|Figure|Fig\.?|Tabla|Cuadro|Abbildung|Abb\.?|Tableau|Tav\.?)\s*\.?\s*\d+",
+    r"^\s*(?:Table|Tab\.?|Tabla|Cuadro|Tableau)\s*\.?\s*\d+",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+# Patrón de pie de figura, mantenido aparte por si se quiere usar en el futuro
+# para un extractor de figuras independiente. No se usa en este módulo.
+CAPTION_RE_FIGURA = re.compile(
+    r"^\s*(?:Figure|Fig\.?|Abbildung|Abb\.?|Tav\.?)\s*\.?\s*\d+",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -112,14 +140,32 @@ def extraer_tablas_digital(
     }
 
     def _es_tabla_real(tabla: list) -> bool:
-        """Descarta estructuras de < 3 filas, 1 columna o con columnas irregulares."""
+        """
+        Descarta estructuras que no son tablas de verdad. Criterios (todos
+        deben cumplirse):
+          - Al menos 3 filas y al menos 2 columnas en la fila más frecuente.
+          - >= 75 % de las filas tienen ese mismo número de columnas
+            (antes 60 %; un 60 % dejaba pasar recuadros irregulares).
+          - >= 50 % de las celdas tienen contenido no vacío (descarta grids
+            de líneas detectadas sobre una zona mayoritariamente en blanco,
+            p. ej. el margen de una página o una caja decorativa).
+        """
         if not tabla or len(tabla) < 3:
             return False
         n_cols = [len(fila) for fila in tabla]
         if max(n_cols) < 2:
             return False
         modo = max(set(n_cols), key=n_cols.count)
-        return sum(1 for n in n_cols if n == modo) >= max(2, len(tabla) * 0.6)
+        if modo < 2:
+            return False
+        consistencia = sum(1 for n in n_cols if n == modo) / len(tabla)
+        if consistencia < 0.75:
+            return False
+        total_celdas = sum(len(fila) for fila in tabla)
+        celdas_no_vacias = sum(
+            1 for fila in tabla for c in fila if c and str(c).strip()
+        )
+        return total_celdas > 0 and (celdas_no_vacias / total_celdas) >= 0.5
 
     with pdfplumber.open(pdf_path) as pdf:
         indices = list(paginas) if paginas is not None else list(range(len(pdf.pages)))
@@ -146,7 +192,7 @@ def extraer_tablas_digital(
                     continue
                 if aplicar_postproc:
                     tabla = [
-                        [corregir_texto(c) if c else "" for c in fila]
+                        [_corregir_celda(c) for c in fila]
                         for fila in tabla
                     ]
                 md = _tabla_a_markdown(tabla)
@@ -202,14 +248,33 @@ def _bbox_tabla(img_gray: np.ndarray) -> Optional[tuple[int, int, int, int]]:
     Devuelve (x, y, w, h) de la tabla, o None si no hay tabla.
 
     Estrategia: una tabla real tiene intersecciones entre líneas horizontales
-    y verticales.  Buscamos el contorno del área de líneas que contiene más
-    intersecciones (≥ 4, es decir al menos una celda 2×2).
+    y verticales. Buscamos el contorno del área de líneas que contiene más
+    intersecciones. Exigimos:
+      - Al menos 9 intersecciones (equivalente a un grid mínimo de 3x3
+        celdas; antes se aceptaban 4, es decir un simple 2x2, demasiado
+        permisivo y fácil de confundir con un recuadro o un logo con marco).
+      - El área del bbox debe ser al menos un 2 % de la imagen completa,
+        para descartar recuadros pequeños (sellos, cabeceras con marco,
+        iconos) que no son tablas de datos.
     """
+    h_total, w_total = img_gray.shape
     lineas_h, lineas_v = _separar_lineas(img_gray)
 
     # Píxeles en los que coinciden línea horizontal Y vertical → intersecciones
     intersecciones = cv2.bitwise_and(lineas_h, lineas_v)
-    if cv2.countNonZero(intersecciones) < 4:
+    if cv2.countNonZero(intersecciones) < 9:
+        return None
+
+    # Un simple recuadro/marco (sin líneas internas) tiene igualmente 2
+    # componentes horizontales (borde superior + inferior) y 2 verticales
+    # (borde izquierdo + derecho), así que un umbral de ">= 2" no lo
+    # distingue de una tabla real. El grid mínimo aceptado es 3 filas x 2
+    # columnas, que requiere 4 líneas horizontales (bordes + 2 divisorias
+    # internas) y 3 verticales (bordes + 1 divisoria interna); exigimos
+    # exactamente eso como mínimo.
+    n_h = cv2.connectedComponents(lineas_h)[0] - 1  # -1: descuenta el fondo
+    n_v = cv2.connectedComponents(lineas_v)[0] - 1
+    if n_h < 4 or n_v < 3:
         return None
 
     # Máscara completa de líneas; dilatar para conectar los bordes de cada celda
@@ -232,37 +297,92 @@ def _bbox_tabla(img_gray: np.ndarray) -> Optional[tuple[int, int, int, int]]:
             mejor_n = n
             mejor_bbox = (x, y, cw, ch)
 
-    return mejor_bbox if mejor_n >= 4 else None
+    if mejor_bbox is None or mejor_n < 9:
+        return None
+
+    _, _, bw, bh = mejor_bbox
+    area_rel = (bw * bh) / (w_total * h_total)
+    if area_rel < 0.02:
+        return None
+
+    return mejor_bbox
 
 
 # ── 2c. Detección y agrupación de celdas ────────────────────────────────────
 
+def _posiciones_lineas(mascara_linea: np.ndarray, eje: str) -> list[int]:
+    """
+    Localiza la posición (coordenada central) de cada línea de tabla dentro
+    de una máscara binaria de líneas horizontales o verticales.
+
+    Exige que la línea cubra al menos el 60 % de la dimensión perpendicular
+    para contarla como línea real de la rejilla (un trazo corto de ruido, o
+    un subrayado suelto, no llega a ese umbral y se descarta).
+
+    Parámetros
+    ----------
+    eje : 'h' para líneas horizontales (se devuelven posiciones Y),
+          'v' para líneas verticales (se devuelven posiciones X).
+    """
+    if eje == "h":
+        perfil = (mascara_linea > 0).sum(axis=1)  # nº de píxeles de línea por fila
+        dim_perpendicular = mascara_linea.shape[1]
+    else:
+        perfil = (mascara_linea > 0).sum(axis=0)  # nº de píxeles de línea por columna
+        dim_perpendicular = mascara_linea.shape[0]
+
+    umbral = dim_perpendicular * 0.6
+    activos = perfil >= umbral
+
+    posiciones = []
+    en_racha = False
+    inicio = 0
+    for i, val in enumerate(activos):
+        if val and not en_racha:
+            en_racha, inicio = True, i
+        elif not val and en_racha:
+            en_racha = False
+            posiciones.append((inicio + i - 1) // 2)
+    if en_racha:
+        posiciones.append((inicio + len(activos) - 1) // 2)
+
+    return posiciones
+
+
 def _detectar_celdas(roi: np.ndarray) -> list[tuple[int, int, int, int]]:
     """
-    Dentro del ROI de la tabla detecta cada celda como espacio entre líneas.
-    Usa jerarquía CCOMP para descartar el contorno padre (toda la imagen).
+    Reconstruye la rejilla de la tabla a partir de las posiciones reales de
+    las líneas horizontales y verticales, y devuelve cada celda como
+    (x, y, w, h), ordenadas por fila y luego por columna.
+
+    Este método (basado en el perfil de línea, no en contornos) es más
+    robusto que localizar "huecos" entre líneas por contornos: no depende de
+    que la rejilla esté perfectamente cerrada en los píxeles del borde del
+    recorte, que es una fuente habitual de fallos con OpenCV cuando la
+    tabla ocupa el recorte al límite.
     """
     h, w = roi.shape
     lineas_h, lineas_v = _separar_lineas(roi)
-    mascara = cv2.add(lineas_h, lineas_v)
-    k = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-    mascara = cv2.dilate(mascara, k, iterations=2)
-    interior = cv2.bitwise_not(mascara)
 
-    contornos, jerarquia = cv2.findContours(interior, cv2.RETR_CCOMP,
-                                            cv2.CHAIN_APPROX_SIMPLE)
-    area_roi = h * w
-    celdas = []
-    for i, c in enumerate(contornos):
-        # CCOMP: jerarquia[0][i][3] == -1 → contorno sin padre (es la imagen entera)
-        if jerarquia is not None and jerarquia[0][i][3] == -1:
+    ys = _posiciones_lineas(lineas_h, "h")
+    xs = _posiciones_lineas(lineas_v, "v")
+
+    margen = 3   # evita capturar los propios píxeles de la línea en el recorte de celda
+    min_lado = 10  # celdas más estrechas que esto se consideran ruido, no datos
+
+    celdas: list[tuple[int, int, int, int]] = []
+    for i in range(len(ys) - 1):
+        y1, y2 = ys[i], ys[i + 1]
+        if (y2 - y1) < min_lado:
             continue
-        x, y, cw, ch = cv2.boundingRect(c)
-        area_rel = (cw * ch) / area_roi
-        if 0.003 <= area_rel <= 0.5 and cw < w * 0.97 and ch < h * 0.97:
-            celdas.append((x, y, cw, ch))
+        for j in range(len(xs) - 1):
+            x1, x2 = xs[j], xs[j + 1]
+            if (x2 - x1) < min_lado:
+                continue
+            cx, cy = x1 + margen, y1 + margen
+            cw, ch = max((x2 - x1) - 2 * margen, 1), max((y2 - y1) - 2 * margen, 1)
+            celdas.append((cx, cy, cw, ch))
 
-    celdas.sort(key=lambda c: (c[1], c[0]))
     return celdas
 
 
@@ -289,17 +409,20 @@ def _agrupar_filas(celdas: list[tuple], tolerancia_pct: float = 0.025,
 
 def _es_grid_valido(filas: list[list]) -> bool:
     """
-    Verifica que las filas formen un grid coherente:
-    - Al menos 2 filas y 2 columnas.
-    - ≥ 70 % de las filas tienen el mismo número de columnas.
+    Verifica que las filas formen un grid coherente. Todos deben cumplirse:
+    - Al menos 3 filas y 2 columnas (antes 2 filas: un grid 2xN es demasiado
+      fácil de producir con ruido de OCR o líneas mal detectadas).
+    - >= 80 % de las filas tienen el mismo número de columnas (antes 70 %).
     """
-    if len(filas) < 2:
+    if len(filas) < 3:
         return False
     n_cols = [len(f) for f in filas]
     if max(n_cols) < 2:
         return False
     modo = max(set(n_cols), key=n_cols.count)
-    return sum(1 for n in n_cols if n == modo) >= max(2, len(filas) * 0.7)
+    if modo < 2:
+        return False
+    return sum(1 for n in n_cols if n == modo) >= max(2, len(filas) * 0.8)
 
 
 # ── 2d. OCR de celda individual ──────────────────────────────────────────────
@@ -354,7 +477,7 @@ def extraer_tabla_de_imagen(
     roi = img_proc[y:y+h, x:x+w]
 
     celdas = _detectar_celdas(roi)
-    if len(celdas) < 4:
+    if len(celdas) < 6:  # antes 4; el grid mínimo válido ahora es 3 filas x 2 cols = 6
         return None
 
     filas = _agrupar_filas(celdas, alto_roi=h)
@@ -368,11 +491,22 @@ def extraer_tabla_de_imagen(
             recorte = roi[cy:cy+ch, cx:cx+cw]
             texto = _ocr_celda(recorte, lang=lang)
             if aplicar_postproc:
-                texto = corregir_texto(texto)
+                texto = _corregir_celda(texto)
             fila_textos.append(texto)
         datos.append(fila_textos)
 
-    return _tabla_a_markdown(datos) if datos else None
+    if not datos:
+        return None
+
+    # Verificación final: si tras el OCR la mayoría de las celdas están vacías,
+    # lo detectado probablemente no era una tabla de datos real (podía ser un
+    # recuadro decorativo o una figura con marco), así que se descarta.
+    total_celdas = sum(len(f) for f in datos)
+    celdas_con_texto = sum(1 for f in datos for c in f if c.strip())
+    if total_celdas == 0 or (celdas_con_texto / total_celdas) < 0.5:
+        return None
+
+    return _tabla_a_markdown(datos)
 
 
 def extraer_tablas_escaneado(
@@ -470,6 +604,35 @@ def extraer_tablas(
             )
         return extraer_tablas_escaneado(imagenes, lang=lang,
                                         aplicar_postproc=aplicar_postproc)
+
+
+# ===========================================================================
+# Inserción de tablas en el texto (compartida por pdf_to_markdown.py y las GUI)
+# ===========================================================================
+
+def insertar_tablas_en_texto(texto: str, tablas_md: list[str]) -> str:
+    """
+    Inserta cada tabla en Markdown justo después de la LÍNEA completa que
+    contiene su caption (no solo después del número), para no partir la
+    frase del pie de tabla por la mitad (p. ej. "Table 1. Sample data" no
+    debe quedar cortado entre "Table 1" y ". Sample data").
+    """
+    if not tablas_md:
+        return texto
+    matches = list(CAPTION_RE.finditer(texto))
+    if not matches:
+        return texto
+
+    partes, prev_end = [], 0
+    for i, m in enumerate(matches):
+        fin_linea = texto.find("\n", m.end())
+        fin_linea = len(texto) if fin_linea == -1 else fin_linea
+        partes.append(texto[prev_end:fin_linea])
+        if i < len(tablas_md):
+            partes.append(f"\n\n{tablas_md[i]}\n")
+        prev_end = fin_linea
+    partes.append(texto[prev_end:])
+    return "".join(partes)
 
 
 # ===========================================================================

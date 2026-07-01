@@ -147,7 +147,7 @@ def main() -> None:
 
     tablas_por_pagina: dict[int, list[str]] = {}
     if args.tablas:
-        from pdf_table_extractor import extraer_tablas, detectar_tipo_pdf, CAPTION_RE
+        from pdf_table_extractor import extraer_tablas, detectar_tipo_pdf, insertar_tablas_en_texto
 
         print("Extrayendo tablas...")
         tipo_pdf = detectar_tipo_pdf(str(args.pdf))
@@ -156,21 +156,7 @@ def main() -> None:
             aplicar_postproc=True,
         )
 
-        def insertar_tablas_junto_a_caption(texto: str, tablas_md: list[str]) -> str:
-            """Inserta cada tabla markdown justo después de su caption en el texto OCR."""
-            if not tablas_md:
-                return texto
-            matches = list(CAPTION_RE.finditer(texto))
-            if not matches:
-                return texto
-            partes, prev_end = [], 0
-            for i, m in enumerate(matches):
-                partes.append(texto[prev_end:m.end()])
-                if i < len(tablas_md):
-                    partes.append(f"\n\n{tablas_md[i]}\n")
-                prev_end = m.end()
-            partes.append(texto[prev_end:])
-            return "".join(partes)
+        insertar_tablas = insertar_tablas_en_texto
 
     print(f"Procesando {len(pages)} páginas...")
     texto_completo = ""
@@ -180,7 +166,7 @@ def main() -> None:
         texto_bruto = pytesseract.image_to_string(page, lang=args.lang, config="--psm 3")
         texto_corregido = corregir_texto(texto_bruto, verbose=not args.quiet)
         if args.tablas and num_pagina in tablas_por_pagina:
-            texto_corregido = insertar_tablas_junto_a_caption(
+            texto_corregido = insertar_tablas(
                 texto_corregido, tablas_por_pagina[num_pagina]
             )
         texto_completo += f"\n\n--- Página {num_pagina} ---\n\n{texto_corregido}"

@@ -23,8 +23,11 @@ PDF (original) → .md (este script) → pegarlo/subirlo a Claude → resumir, t
 | Archivo | Función |
 | --- | --- |
 | `pdf_to_markdown.py` | Script principal (CLI). Convierte el PDF completo, un rango de páginas, y opcionalmente extrae tablas. |
+| `PDF_a_Markdown_GUI.py` | Aplicación de escritorio (sin terminal), solo texto. |
+| `PDF_a_Markdown_con_Tablas_GUI.py` | Aplicación de escritorio (sin terminal), texto + extracción estricta de tablas. |
+| `gui_common.py` | Motor de conversión compartido por las dos aplicaciones de escritorio. |
 | `ocr_postprocess_mejorado.py` | Corrige errores típicos del OCR en griego clásico y en el texto académico multilingüe que lo acompaña. |
-| `pdf_table_extractor.py` | Extrae tablas de PDFs digitales (con `pdfplumber`) o escaneados (con OpenCV + Tesseract). |
+| `pdf_table_extractor.py` | Extrae tablas de PDFs digitales (con `pdfplumber`) o escaneados (con OpenCV + Tesseract), con detección estricta. |
 | `config.py` | Configuración centralizada de las rutas de Tesseract y Poppler (vía variables de entorno). |
 
 ## Requisitos previos
@@ -87,6 +90,43 @@ El `.md` resultante se guarda en la carpeta de salida indicada con `-o` y se abr
 ### Configuración de idiomas
 
 El OCR usa `--lang eng+grc` (inglés + griego clásico) por defecto. Puedes añadir otros idiomas instalados en Tesseract (`fra`, `deu`, `ita`...) o dejar solo `grc` si el documento es íntegramente griego.
+
+## Aplicaciones de escritorio (sin terminal)
+
+Para compartir la herramienta con compañeros que no usan la línea de comandos, hay dos aplicaciones gráficas independientes (mismo motor de conversión por debajo, en `gui_common.py`):
+
+| Aplicación | Cuándo usarla |
+| --- | --- |
+| `PDF_a_Markdown_GUI.py` | Documentos de solo texto, sin tablas. Más rápida y sencilla. |
+| `PDF_a_Markdown_con_Tablas_GUI.py` | Documentos que además tienen tablas. Extrae y detecta tablas con criterios **estrictos** (ver más abajo) para evitar falsos positivos. |
+
+Ambas se ejecutan con:
+
+```bash
+python PDF_a_Markdown_GUI.py
+python PDF_a_Markdown_con_Tablas_GUI.py
+```
+
+Para distribuirlas como `.exe` sin que el destinatario necesite instalar Python, puede empaquetarse con PyInstaller, por ejemplo:
+
+```bash
+pip install pyinstaller
+pyinstaller --onefile --windowed --name "PDF a Markdown" PDF_a_Markdown_GUI.py
+pyinstaller --onefile --windowed --name "PDF a Markdown (con tablas)" PDF_a_Markdown_con_Tablas_GUI.py
+```
+
+### Detección estricta de tablas
+
+`PDF_a_Markdown_con_Tablas_GUI.py` (y `pdf_to_markdown.py --tablas`) solo consideran que hay una tabla si se cumple **todo** lo siguiente:
+
+- La página contiene un pie explícito de **tabla** (no de figura): "Table 1", "Tabla 1", "Tab. 1", "Cuadro 1", "Tableau 1"... (los pies de figura, "Figure"/"Fig."/"Abb.", quedan excluidos a propósito).
+- La rejilla tiene al menos 3 filas y 2 columnas, con al menos un 75-80 % de las filas compartiendo el mismo número de columnas.
+- Al menos la mitad de las celdas contienen texto real tras el OCR (descarta recuadros vacíos o mal detectados).
+- En PDFs escaneados, además: al menos 4 líneas horizontales y 3 verticales detectadas (un simple marco decorativo con solo borde exterior no cumple este mínimo), y la región debe ocupar al menos un 2 % del área de la página.
+
+Si un documento no tiene tablas reales, es normal y esperable que la aplicación informe "0 tablas encontradas": no fuerza a encontrar algo que no está.
+
+
 
 ## Cómo funciona
 
