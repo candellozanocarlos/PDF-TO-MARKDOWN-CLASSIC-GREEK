@@ -220,58 +220,7 @@ Si te falta alguno de los dos, la aplicación lo detecta al intentar convertir y
    - **macOS:** descomprime el `.zip`, y para el primer uso haz clic derecho sobre el `.app` → "Abrir" (en vez de doble clic normal), para saltar el aviso de "desarrollador no verificado". A partir de ahí, doble clic funciona con normalidad.
 4. Usa la ventana con normalidad: seleccionar PDF, carpeta de salida, idiomas, y pulsar "Convertir".
 
-### Lo que tienes que hacer tú una vez (para dejar el .exe publicado)
-
-Esto sí requiere terminal, pero solo lo haces tú, una vez, no cada compañero:
-
-```bash
-pip install pyinstaller
-pyinstaller --onefile --windowed --name "PDF a Markdown" ^
-    --add-data "tema_calido.json;." ^
-    PDF_a_Markdown_GUI.py
-
-pyinstaller --onefile --windowed --name "PDF a Markdown (con tablas)" ^
-    --add-data "tema_calido.json;." ^
-    PDF_a_Markdown_con_Tablas_GUI.py
-```
-
-(`config.py` no necesita `--add-data`: al ser un módulo Python que se importa con `import config`, PyInstaller lo detecta e incluye automáticamente. Solo `tema_calido.json`, al ser un archivo de datos, necesita indicarse explícitamente.)
-
-(En Git Bash el separador de `--add-data` en Windows es `;`, como arriba; en Linux/macOS sería `:`. El símbolo `^` al final de línea es el de continuación de línea de `cmd.exe`; en Git Bash usa `\` en su lugar si copias el comando literal.)
-
-Esto genera los `.exe` dentro de `dist/`. Después:
-
-1. Ve a la página del repositorio en GitHub → pestaña **"Releases"** (o el enlace "Create a new release" que aparece en la barra lateral) → **"Draft a new release"**.
-2. Ponle una etiqueta de versión (p. ej. `v1.0`) y un título.
-3. Arrastra los dos archivos `.exe` generados en `dist/` a la zona de "Attach binaries".
-4. Pulsa **"Publish release"**.
-
-A partir de ahí, el enlace a esa página de Releases es lo único que necesitas compartir con tus compañeros.
-
-## Aplicaciones de escritorio (detalle técnico)
-
-Para compartir la herramienta con compañeros que no usan la línea de comandos, hay dos aplicaciones gráficas independientes (mismo motor de conversión por debajo, en `gui_common.py`):
-
-| Aplicación | Cuándo usarla |
-| --- | --- |
-| `PDF_a_Markdown_GUI.py` | Documentos de solo texto, sin tablas. Más rápida y sencilla. |
-| `PDF_a_Markdown_con_Tablas_GUI.py` | Documentos que además tienen tablas. Extrae y detecta tablas con criterios **estrictos** (ver más abajo) para evitar falsos positivos. |
-
-Ambas se ejecutan con:
-
-```bash
-python PDF_a_Markdown_GUI.py
-python PDF_a_Markdown_con_Tablas_GUI.py
-```
-
-Ambas comparten:
-
-- **Tema visual cálido** (`tema_calido.json`, tonos ámbar/marrón sobre fondo crema), aplicado globalmente vía `ctk.set_default_color_theme(...)` en `gui_common.py`. Para cambiar la paleta basta con editar ese único archivo JSON.
-- **Selector de idiomas por casillas independientes** (griego clásico, inglés, francés, alemán, italiano, español, latín): se marcan y desmarcan libremente según lo que aparezca en el PDF, en vez de elegir entre combinaciones prefijadas. Al menos un idioma debe quedar marcado.
-
-Para instrucciones de empaquetado con PyInstaller y publicación como `.exe` descargable, ver la sección anterior "Para compañeros sin conocimientos de informática".
-
-### Detección estricta de tablas
+## Detección estricta de tablas
 
 `PDF_a_Markdown_con_Tablas_GUI.py` (y `pdf_to_markdown.py --tablas`) solo consideran que hay una tabla si se cumple **todo** lo siguiente:
 
@@ -281,8 +230,6 @@ Para instrucciones de empaquetado con PyInstaller y publicación como `.exe` des
 - En PDFs escaneados, además: al menos 4 líneas horizontales y 3 verticales detectadas (un simple marco decorativo con solo borde exterior no cumple este mínimo), y la región debe ocupar al menos un 2 % del área de la página.
 
 Si un documento no tiene tablas reales, es normal y esperable que la aplicación informe "0 tablas encontradas": no fuerza a encontrar algo que no está.
-
-
 
 ## Cómo funciona
 
