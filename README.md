@@ -91,23 +91,68 @@ git pull
 pip install -r requirements.txt
 ```
 
-### Configurar las rutas de Tesseract y Poppler
+### Instalar y configurar Tesseract y Poppler
 
-En vez de editar el código, define estas variables de entorno antes de ejecutar el script (ver `config.py` para más detalle):
+El proyecto necesita dos programas externos que **no son librerías de Python** (por eso `pip install -r requirements.txt` no los instala):
 
-**Windows (PowerShell)**
+- **Tesseract OCR**: el motor que "lee" el texto dentro de las imágenes de cada página del PDF. Sin él, no hay conversión posible.
+- **Poppler**: la librería que convierte cada página del PDF en una imagen antes de pasársela a Tesseract (la usa `pdf2image` por debajo).
 
+#### Paso 1 — Instalarlos
+
+**Windows:**
+1. Tesseract: descarga el instalador desde [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki) y ejecútalo. Durante la instalación, marca el paquete de idioma "Greek" (griego clásico) además del inglés si lo ofrece la lista de idiomas adicionales.
+2. Poppler: descarga el `.zip` desde [oschwartz10612/poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases) y descomprímelo en una carpeta fija, por ejemplo `C:\poppler` (Poppler para Windows no trae instalador, es solo un `.zip` con los ejecutables dentro).
+
+**macOS**, con [Homebrew](https://brew.sh) instalado:
+```bash
+brew install tesseract tesseract-lang poppler
+```
+
+**Linux** (Debian/Ubuntu):
+```bash
+sudo apt install tesseract-ocr tesseract-ocr-grc poppler-utils
+```
+(`tesseract-ocr-grc` es el paquete de idioma griego; añade `tesseract-ocr-fra`, `tesseract-ocr-deu`, etc. según los idiomas que necesites.)
+
+#### Paso 2 — Comprobar que el proyecto los encuentra automáticamente
+
+`config.py` intenta localizarlos solo, sin que tengas que configurar nada, buscando: el `PATH` del sistema, y en macOS además las carpetas típicas de Homebrew/MacPorts. En la mayoría de los casos con esto basta. Para comprobarlo, ejecuta:
+
+```bash
+python -c "import config; print(config.verificar_dependencias_externas())"
+```
+
+- Si imprime `[]` (una lista vacía), todo en orden, puedes saltar directamente a la sección "Uso" de más abajo.
+- Si imprime uno o más mensajes de aviso, significa que no ha encontrado alguno de los dos programas y te dice cómo instalarlo; si ya los tienes instalados pero en una ruta poco habitual, sigue con el Paso 3.
+
+#### Paso 3 — Solo si el Paso 2 no los encontró: indicar la ruta manualmente
+
+Se hace con dos variables de entorno, **`TESSERACT_CMD`** (ruta al ejecutable de Tesseract) y **`POPPLER_PATH`** (ruta a la *carpeta* `bin` de Poppler, no al ejecutable). Hay que definirlas en la misma terminal donde vayas a ejecutar el script, cada vez que abras una terminal nueva (o añadirlas de forma permanente al perfil de tu shell, `.zshrc`/`.bashrc`/perfil de PowerShell, si no quieres repetirlo).
+
+**Windows (Git Bash o PowerShell):**
+```bash
+export TESSERACT_CMD="/c/Program Files/Tesseract-OCR/tesseract.exe"
+export POPPLER_PATH="/c/poppler/Library/bin"
+```
+o, en PowerShell:
 ```powershell
 $env:TESSERACT_CMD = "C:\Program Files\Tesseract-OCR\tesseract.exe"
 $env:POPPLER_PATH  = "C:\poppler\Library\bin"
 ```
 
-**Linux / macOS** (normalmente ya están en el `PATH` tras instalar los paquetes del sistema, así que esto suele ser opcional)
-
+**Linux / macOS:**
 ```bash
 export TESSERACT_CMD=/usr/bin/tesseract
 export POPPLER_PATH=/usr/bin
 ```
+(ajusta la ruta a donde tengas realmente instalados los programas; en Mac con Homebrew suele ser `/opt/homebrew/bin` en chips Apple o `/usr/local/bin` en chips Intel).
+
+Vuelve a ejecutar el comando de comprobación del Paso 2 para confirmar que ahora sí los encuentra.
+
+---
+
+**Con esto, la instalación está completa.** El siguiente paso es la sección "Uso" de aquí abajo, donde se ejecuta ya la conversión propiamente dicha.
 
 ## Uso
 
