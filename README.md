@@ -62,11 +62,34 @@ PDF (original) → .md (este script) → pegarlo/subirlo a Claude → resumir, t
 - Python 3.10+
 - [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) (con los paquetes de idioma que necesites, por ejemplo `grc` para griego clásico)
 - [Poppler](https://github.com/oschwartz10612/poppler-windows/releases) (en Windows; en Linux/macOS suele bastar con instalarlo por el gestor de paquetes del sistema)
-- Dependencias de Python:
 
-  ```
-  pip install -r requirements.txt
-  ```
+### Clonar el repositorio
+
+Abre una terminal (en Windows, Git Bash; en Linux/macOS, la Terminal normal) y ejecuta, uno a uno:
+
+```bash
+git clone https://github.com/candellozanocarlos/PDF-TO-MARKDOWN-CLASSIC-GREEK.git
+```
+
+Esto crea una carpeta nueva llamada `PDF-TO-MARKDOWN-CLASSIC-GREEK` con una copia completa del repositorio. Entra en ella:
+
+```bash
+cd PDF-TO-MARKDOWN-CLASSIC-GREEK
+```
+
+Todos los comandos de las secciones siguientes (`pip install`, `python pdf_to_markdown.py`, etc.) se ejecutan **desde dentro de esta carpeta**. Si en algún momento un comando da "No such file or directory" o "command not found", lo primero a comprobar es que sigues dentro de `PDF-TO-MARKDOWN-CLASSIC-GREEK` (con `pwd` en Linux/macOS o simplemente mirando la ruta que muestra el símbolo `$` en Git Bash).
+
+Si más adelante quieres actualizar tu copia local con los últimos cambios subidos al repositorio, hazlo con:
+
+```bash
+git pull
+```
+
+### Instalar las dependencias de Python
+
+```bash
+pip install -r requirements.txt
+```
 
 ### Configurar las rutas de Tesseract y Poppler
 
