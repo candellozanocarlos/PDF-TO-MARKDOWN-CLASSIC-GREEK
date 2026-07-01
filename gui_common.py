@@ -28,17 +28,39 @@ from pdf2image import convert_from_path
 import config
 from ocr_postprocess_mejorado import corregir_texto
 
-IDIOMAS_DISPONIBLES = {
-    "Griego clásico + inglés (recomendado)": "grc+eng",
-    "Solo griego clásico": "grc",
-    "Griego clásico + inglés + francés": "grc+eng+fra",
-    "Griego clásico + inglés + alemán": "grc+eng+deu",
-    "Griego clásico + inglés + italiano": "grc+eng+ita",
-    "Solo inglés": "eng",
-}
+IDIOMAS_TESSERACT: list[tuple[str, str]] = [
+    ("grc", "Griego clásico"),
+    ("eng", "Inglés"),
+    ("fra", "Francés"),
+    ("deu", "Alemán"),
+    ("ita", "Italiano"),
+    ("spa", "Español"),
+    ("lat", "Latín"),
+]
+
+IDIOMAS_POR_DEFECTO = ("grc", "eng")
+
+def _ruta_recurso(nombre: str) -> Path:
+    """
+    Localiza un archivo de recurso (como tema_calido.json) tanto si el
+    programa se ejecuta como script normal como si se ha empaquetado con
+    PyInstaller en modo --onefile (donde los recursos se extraen a una
+    carpeta temporal indicada por sys._MEIPASS, y Path(__file__).parent ya
+    no apunta a la carpeta del proyecto).
+    """
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
+    return base / nombre
+
 
 ctk.set_appearance_mode("light")
-ctk.set_default_color_theme("blue")
+ctk.set_default_color_theme(str(_ruta_recurso("tema_calido.json")))
+
+# Paleta cálida, para los pocos sitios donde se fija un color a mano
+# (paneles de aviso, textos secundarios) en vez de dejar que lo resuelva
+# el tema de CustomTkinter.
+COLOR_TEXTO_SECUNDARIO = "#8A6D4E"
+COLOR_PANEL_AVISO = "#EAD6AE"
+COLOR_ADVERTENCIA_TEXTO = "#8C4E17"
 
 
 def abrir_archivo(ruta: Path) -> None:
@@ -267,3 +289,46 @@ def crear_selector_carpeta(
     ctk.CTkButton(fila, text="Examinar...", width=110, command=_examinar).pack(side="left")
 
     return frame
+
+
+def crear_selector_idiomas(
+    parent, marcados_por_defecto: tuple[str, ...] = IDIOMAS_POR_DEFECTO
+) -> tuple[ctk.CTkFrame, dict[str, ctk.BooleanVar]]:
+    """
+    Crea un panel con una casilla independiente por idioma (en vez de un
+    desplegable con combinaciones prefijadas), para que se puedan marcar y
+    desmarcar libremente según los idiomas que de verdad aparezcan en el PDF.
+
+    Devuelve (frame, variables), donde `variables` es un diccionario
+    {codigo_tesseract: BooleanVar} que se consulta con obtener_lang_string().
+    """
+    frame = ctk.CTkFrame(parent, fg_color="transparent")
+    ctk.CTkLabel(
+        frame, text="Idiomas del documento (marca todos los que aparezcan)",
+        anchor="w", font=ctk.CTkFont(weight="bold"),
+    ).pack(fill="x", pady=(0, 6))
+
+    rejilla = ctk.CTkFrame(frame, fg_color="transparent")
+    rejilla.pack(fill="x")
+
+    variables: dict[str, ctk.BooleanVar] = {}
+    columnas = 3
+    for i, (codigo, nombre) in enumerate(IDIOMAS_TESSERACT):
+        var = ctk.BooleanVar(value=(codigo in marcados_por_defecto))
+        variables[codigo] = var
+        ctk.CTkCheckBox(rejilla, text=nombre, variable=var).grid(
+            row=i // columnas, column=i % columnas, sticky="w", padx=(0, 18), pady=5
+        )
+
+    return frame, variables
+
+
+def obtener_lang_string(variables: dict[str, ctk.BooleanVar]) -> Optional[str]:
+    """
+    Convierte las casillas marcadas en la cadena de idiomas que espera
+    Tesseract (p. ej. "grc+eng+fra"). Devuelve None si no hay ninguna
+    marcada, para que la GUI pueda avisar en vez de lanzar el OCR sin idioma.
+    """
+    orden = [codigo for codigo, _ in IDIOMAS_TESSERACT]
+    seleccionados = [c for c in orden if variables[c].get()]
+    return "+".join(seleccionados) if seleccionados else None

@@ -29,12 +29,14 @@ from pathlib import Path
 import customtkinter as ctk
 
 from gui_common import (
-    IDIOMAS_DISPONIBLES,
+    COLOR_TEXTO_SECUNDARIO,
     MotorConversion,
     abrir_archivo,
     abrir_carpeta,
     crear_selector_archivo,
     crear_selector_carpeta,
+    crear_selector_idiomas,
+    obtener_lang_string,
 )
 
 
@@ -42,8 +44,8 @@ class App(ctk.CTk):
     def __init__(self) -> None:
         super().__init__()
         self.title("PDF a Markdown — Griego clásico (con tablas)")
-        self.geometry("640x700")
-        self.minsize(560, 620)
+        self.geometry("680x780")
+        self.minsize(600, 680)
 
         self.motor = MotorConversion()
         self.ultimo_output: Path | None = None
@@ -51,7 +53,6 @@ class App(ctk.CTk):
 
         self.var_pdf = ctk.StringVar()
         self.var_output_dir = ctk.StringVar(value=str(Path.home() / "Documents" / "markdown"))
-        self.var_idioma = ctk.StringVar(value=list(IDIOMAS_DISPONIBLES.keys())[0])
         self.var_rango_activo = ctk.BooleanVar(value=False)
         self.var_pag_inicio = ctk.StringVar()
         self.var_pag_fin = ctk.StringVar()
@@ -62,48 +63,49 @@ class App(ctk.CTk):
     # ------------------------------------------------------------------ UI
     def _construir_ui(self) -> None:
         contenedor = ctk.CTkFrame(self, fg_color="transparent")
-        contenedor.pack(fill="both", expand=True, padx=24, pady=20)
+        contenedor.pack(fill="both", expand=True, padx=26, pady=22)
 
+        # --- Cabecera ---
+        cabecera = ctk.CTkFrame(contenedor, corner_radius=14)
+        cabecera.pack(fill="x", pady=(0, 18))
         ctk.CTkLabel(
-            contenedor,
-            text="Convertir PDF a Markdown (con tablas)",
-            font=ctk.CTkFont(size=20, weight="bold"),
-        ).pack(anchor="w", pady=(0, 4))
+            cabecera, text="📊  PDF a Markdown  ·  con tablas",
+            font=ctk.CTkFont(size=22, weight="bold"),
+        ).pack(anchor="w", padx=18, pady=(14, 2))
         ctk.CTkLabel(
-            contenedor,
-            text="Extrae también las tablas del documento. Detección estricta:\n"
+            cabecera,
+            text="Extrae también las tablas del documento con detección estricta:\n"
                  "solo se extraen tablas con pie explícito y rejilla real (evita falsos positivos).",
-            text_color="gray40", justify="left",
-        ).pack(anchor="w", pady=(0, 16))
+            text_color=COLOR_TEXTO_SECUNDARIO, justify="left",
+        ).pack(anchor="w", padx=18, pady=(0, 14))
+
+        # --- Tarjeta de configuración ---
+        tarjeta = ctk.CTkFrame(contenedor, corner_radius=14)
+        tarjeta.pack(fill="x", pady=(0, 16))
+        interior = ctk.CTkFrame(tarjeta, fg_color="transparent")
+        interior.pack(fill="x", padx=18, pady=16)
 
         crear_selector_archivo(
-            contenedor,
-            "1. Selecciona el PDF",
+            interior,
+            "1.  Selecciona el PDF",
             self.var_pdf,
             filetypes=[("Archivos PDF", "*.pdf")],
-        ).pack(fill="x", pady=(0, 14))
+        ).pack(fill="x", pady=(0, 16))
 
         crear_selector_carpeta(
-            contenedor, "2. Carpeta donde guardar el .md", self.var_output_dir
-        ).pack(fill="x", pady=(0, 14))
+            interior, "2.  Carpeta donde guardar el .md", self.var_output_dir
+        ).pack(fill="x", pady=(0, 16))
 
-        ctk.CTkLabel(
-            contenedor, text="3. Idioma del documento", anchor="w",
-            font=ctk.CTkFont(weight="bold"),
-        ).pack(fill="x", pady=(0, 4))
-        ctk.CTkOptionMenu(
-            contenedor, variable=self.var_idioma, values=list(IDIOMAS_DISPONIBLES.keys())
-        ).pack(fill="x", pady=(0, 14))
+        frame_idiomas, self.vars_idiomas = crear_selector_idiomas(interior)
+        frame_idiomas.pack(fill="x", pady=(0, 16))
 
         # Rango de páginas opcional
-        fila_rango = ctk.CTkFrame(contenedor, fg_color="transparent")
-        fila_rango.pack(fill="x", pady=(0, 14))
         ctk.CTkCheckBox(
-            fila_rango, text="Convertir solo un rango de páginas",
+            interior, text="Convertir solo un rango de páginas",
             variable=self.var_rango_activo, command=self._alternar_rango,
         ).pack(anchor="w", pady=(0, 6))
 
-        self.fila_paginas = ctk.CTkFrame(fila_rango, fg_color="transparent")
+        self.fila_paginas = ctk.CTkFrame(interior, fg_color="transparent")
         self.fila_paginas.pack(fill="x")
         ctk.CTkLabel(self.fila_paginas, text="Desde página:").pack(side="left")
         self.entry_inicio = ctk.CTkEntry(self.fila_paginas, textvariable=self.var_pag_inicio, width=70, state="disabled")
@@ -112,42 +114,44 @@ class App(ctk.CTk):
         self.entry_fin = ctk.CTkEntry(self.fila_paginas, textvariable=self.var_pag_fin, width=70, state="disabled")
         self.entry_fin.pack(side="left", padx=(6, 0))
 
-        # Botón de conversión
+        # --- Botón de conversión ---
         self.boton_convertir = ctk.CTkButton(
-            contenedor, text="Convertir a Markdown (con tablas)", height=42,
+            contenedor, text="✨  Convertir a Markdown (con tablas)", height=46,
             font=ctk.CTkFont(size=15, weight="bold"), command=self._on_convertir,
         )
-        self.boton_convertir.pack(fill="x", pady=(6, 10))
+        self.boton_convertir.pack(fill="x", pady=(0, 12))
 
-        self.barra_progreso = ctk.CTkProgressBar(contenedor)
+        self.barra_progreso = ctk.CTkProgressBar(contenedor, height=10)
         self.barra_progreso.set(0)
-        self.barra_progreso.pack(fill="x", pady=(0, 10))
+        self.barra_progreso.pack(fill="x", pady=(0, 12))
 
-        # Panel de resumen de tablas
-        self.panel_tablas = ctk.CTkFrame(contenedor, fg_color=("gray90", "gray20"))
-        self.panel_tablas.pack(fill="x", pady=(0, 10))
+        # --- Panel de resumen de tablas ---
+        self.panel_tablas = ctk.CTkFrame(contenedor, corner_radius=12)
+        self.panel_tablas.pack(fill="x", pady=(0, 12))
         self.label_resumen_tablas = ctk.CTkLabel(
-            self.panel_tablas, text="Todavía no se ha buscado ninguna tabla.",
+            self.panel_tablas, text="📋  Todavía no se ha buscado ninguna tabla.",
             anchor="w", justify="left",
         )
-        self.label_resumen_tablas.pack(fill="x", padx=10, pady=8)
+        self.label_resumen_tablas.pack(fill="x", padx=14, pady=10)
 
-        ctk.CTkLabel(contenedor, text="Registro de la conversión:", anchor="w").pack(fill="x")
-        self.caja_log = ctk.CTkTextbox(contenedor, height=150, state="disabled")
-        self.caja_log.pack(fill="both", expand=True, pady=(4, 10))
+        # --- Registro ---
+        ctk.CTkLabel(contenedor, text="Registro de la conversión", anchor="w",
+                     font=ctk.CTkFont(weight="bold")).pack(fill="x")
+        self.caja_log = ctk.CTkTextbox(contenedor, height=140, state="disabled")
+        self.caja_log.pack(fill="both", expand=True, pady=(6, 14))
 
         self.fila_final = ctk.CTkFrame(contenedor, fg_color="transparent")
         self.fila_final.pack(fill="x")
         self.boton_abrir = ctk.CTkButton(
-            self.fila_final, text="Abrir el .md generado", state="disabled",
+            self.fila_final, text="📄  Abrir el .md generado", state="disabled",
             command=self._abrir_resultado,
         )
         self.boton_abrir.pack(side="left")
         self.boton_carpeta = ctk.CTkButton(
-            self.fila_final, text="Abrir carpeta", state="disabled",
-            command=self._abrir_carpeta, fg_color="gray50", hover_color="gray40",
+            self.fila_final, text="📂  Abrir carpeta", state="disabled",
+            command=self._abrir_carpeta, fg_color="#8A6D4E", hover_color="#6E5540",
         )
-        self.boton_carpeta.pack(side="left", padx=(8, 0))
+        self.boton_carpeta.pack(side="left", padx=(10, 0))
 
     def _alternar_rango(self) -> None:
         estado = "normal" if self.var_rango_activo.get() else "disabled"
@@ -178,6 +182,11 @@ class App(ctk.CTk):
             self._log("⚠ Indica una carpeta de salida.")
             return
 
+        lang = obtener_lang_string(self.vars_idiomas)
+        if lang is None:
+            self._log("⚠ Marca al menos un idioma antes de convertir.")
+            return
+
         pagina_inicio = pagina_fin = None
         if self.var_rango_activo.get():
             try:
@@ -189,14 +198,12 @@ class App(ctk.CTk):
                 self._log("⚠ El rango de páginas no es válido (revisa 'Desde' y 'Hasta').")
                 return
 
-        lang = IDIOMAS_DISPONIBLES[self.var_idioma.get()]
-
         self.caja_log.configure(state="normal")
         self.caja_log.delete("1.0", "end")
         self.caja_log.configure(state="disabled")
         self.barra_progreso.set(0)
         self.tablas_encontradas = []
-        self.label_resumen_tablas.configure(text="Buscando tablas...")
+        self.label_resumen_tablas.configure(text="🔍  Buscando tablas...")
         self.boton_convertir.configure(state="disabled", text="Convirtiendo...")
         self.boton_abrir.configure(state="disabled")
         self.boton_carpeta.configure(state="disabled")
@@ -213,13 +220,13 @@ class App(ctk.CTk):
     def _actualizar_resumen_tablas(self) -> None:
         if not self.tablas_encontradas:
             self.label_resumen_tablas.configure(
-                text="0 tablas encontradas (con los criterios estrictos de detección)."
+                text="📋  0 tablas encontradas (con los criterios estrictos de detección)."
             )
             return
         total = sum(n for _, n in self.tablas_encontradas)
         paginas = ", ".join(str(p) for p, _ in sorted(self.tablas_encontradas))
         self.label_resumen_tablas.configure(
-            text=f"{total} tabla(s) encontrada(s) en la(s) página(s): {paginas}"
+            text=f"📋  {total} tabla(s) encontrada(s) en la(s) página(s): {paginas}"
         )
 
     def _consumir_cola(self) -> None:
@@ -242,13 +249,13 @@ class App(ctk.CTk):
                     self.ultimo_output = ruta
                     self._actualizar_resumen_tablas()
                     self._log(f"\n✅ Conversión terminada.\nArchivo guardado en:\n{ruta}")
-                    self.boton_convertir.configure(state="normal", text="Convertir a Markdown (con tablas)")
+                    self.boton_convertir.configure(state="normal", text="✨  Convertir a Markdown (con tablas)")
                     self.boton_abrir.configure(state="normal")
                     self.boton_carpeta.configure(state="normal")
                     self.barra_progreso.set(1)
                 elif tipo == "error":
                     self._log(f"\n❌ Ha ocurrido un error:\n{mensaje[1]}")
-                    self.boton_convertir.configure(state="normal", text="Convertir a Markdown (con tablas)")
+                    self.boton_convertir.configure(state="normal", text="✨  Convertir a Markdown (con tablas)")
         except Exception:
             pass
         finally:

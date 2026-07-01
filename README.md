@@ -25,7 +25,8 @@ PDF (original) → .md (este script) → pegarlo/subirlo a Claude → resumir, t
 | `pdf_to_markdown.py` | Script principal (CLI). Convierte el PDF completo, un rango de páginas, y opcionalmente extrae tablas. |
 | `PDF_a_Markdown_GUI.py` | Aplicación de escritorio (sin terminal), solo texto. |
 | `PDF_a_Markdown_con_Tablas_GUI.py` | Aplicación de escritorio (sin terminal), texto + extracción estricta de tablas. |
-| `gui_common.py` | Motor de conversión compartido por las dos aplicaciones de escritorio. |
+| `gui_common.py` | Motor de conversión y componentes compartidos por las dos aplicaciones de escritorio. |
+| `tema_calido.json` | Tema visual (tonos ámbar/marrón) de las aplicaciones de escritorio. |
 | `ocr_postprocess_mejorado.py` | Corrige errores típicos del OCR en griego clásico y en el texto académico multilingüe que lo acompaña. |
 | `pdf_table_extractor.py` | Extrae tablas de PDFs digitales (con `pdfplumber`) o escaneados (con OpenCV + Tesseract), con detección estricta. |
 | `config.py` | Configuración centralizada de las rutas de Tesseract y Poppler (vía variables de entorno). |
@@ -91,7 +92,48 @@ El `.md` resultante se guarda en la carpeta de salida indicada con `-o` y se abr
 
 El OCR usa `--lang eng+grc` (inglés + griego clásico) por defecto. Puedes añadir otros idiomas instalados en Tesseract (`fra`, `deu`, `ita`...) o dejar solo `grc` si el documento es íntegramente griego.
 
-## Aplicaciones de escritorio (sin terminal)
+## Para compañeros sin conocimientos de informática (sin Git, sin terminal)
+
+Si vas a compartir esta herramienta con alguien que no sabe qué es Git ni una terminal, **no le mandes este repositorio para que lo clone**: mándale directamente un `.exe` a través de la sección "Releases" de GitHub. Así su experiencia se reduce a: descargar un archivo, hacer doble clic, y usar la ventana.
+
+### Lo que tiene que hacer la persona que lo use (nada de código)
+
+1. Entra en la página de **Releases** del repositorio (enlace fijado en la barra lateral derecha de GitHub, o en `.../releases`).
+2. Descarga el `.exe` correspondiente ("PDF a Markdown.exe" para texto, o "PDF a Markdown (con tablas).exe" si también necesita tablas).
+3. Doble clic para abrirlo. Windows probablemente muestre un aviso de SmartScreen ("Windows protegió tu PC") porque el `.exe` no está firmado digitalmente; hay que pulsar **"Más información"** y luego **"Ejecutar de todos modos"**. Esto es normal en programas de un solo desarrollador sin certificado de pago, no significa que el programa sea inseguro.
+4. Usa la ventana con normalidad: seleccionar PDF, carpeta de salida, idiomas, y pulsar "Convertir".
+
+No necesita instalar Python, Tesseract, Poppler ni nada más: todo va empaquetado dentro del `.exe`.
+
+### Lo que tienes que hacer tú una vez (para dejar el .exe publicado)
+
+Esto sí requiere terminal, pero solo lo haces tú, una vez, no cada compañero:
+
+```bash
+pip install pyinstaller
+pyinstaller --onefile --windowed --name "PDF a Markdown" ^
+    --add-data "tema_calido.json;." ^
+    PDF_a_Markdown_GUI.py
+
+pyinstaller --onefile --windowed --name "PDF a Markdown (con tablas)" ^
+    --add-data "tema_calido.json;." ^
+    PDF_a_Markdown_con_Tablas_GUI.py
+```
+
+(`config.py` no necesita `--add-data`: al ser un módulo Python que se importa con `import config`, PyInstaller lo detecta e incluye automáticamente. Solo `tema_calido.json`, al ser un archivo de datos, necesita indicarse explícitamente.)
+
+(En Git Bash el separador de `--add-data` en Windows es `;`, como arriba; en Linux/macOS sería `:`. El símbolo `^` al final de línea es el de continuación de línea de `cmd.exe`; en Git Bash usa `\` en su lugar si copias el comando literal.)
+
+Esto genera los `.exe` dentro de `dist/`. Después:
+
+1. Ve a la página del repositorio en GitHub → pestaña **"Releases"** (o el enlace "Create a new release" que aparece en la barra lateral) → **"Draft a new release"**.
+2. Ponle una etiqueta de versión (p. ej. `v1.0`) y un título.
+3. Arrastra los dos archivos `.exe` generados en `dist/` a la zona de "Attach binaries".
+4. Pulsa **"Publish release"**.
+
+A partir de ahí, el enlace a esa página de Releases es lo único que necesitas compartir con tus compañeros.
+
+## Aplicaciones de escritorio (detalle técnico)
 
 Para compartir la herramienta con compañeros que no usan la línea de comandos, hay dos aplicaciones gráficas independientes (mismo motor de conversión por debajo, en `gui_common.py`):
 
@@ -107,13 +149,12 @@ python PDF_a_Markdown_GUI.py
 python PDF_a_Markdown_con_Tablas_GUI.py
 ```
 
-Para distribuirlas como `.exe` sin que el destinatario necesite instalar Python, puede empaquetarse con PyInstaller, por ejemplo:
+Ambas comparten:
 
-```bash
-pip install pyinstaller
-pyinstaller --onefile --windowed --name "PDF a Markdown" PDF_a_Markdown_GUI.py
-pyinstaller --onefile --windowed --name "PDF a Markdown (con tablas)" PDF_a_Markdown_con_Tablas_GUI.py
-```
+- **Tema visual cálido** (`tema_calido.json`, tonos ámbar/marrón sobre fondo crema), aplicado globalmente vía `ctk.set_default_color_theme(...)` en `gui_common.py`. Para cambiar la paleta basta con editar ese único archivo JSON.
+- **Selector de idiomas por casillas independientes** (griego clásico, inglés, francés, alemán, italiano, español, latín): se marcan y desmarcan libremente según lo que aparezca en el PDF, en vez de elegir entre combinaciones prefijadas. Al menos un idioma debe quedar marcado.
+
+Para instrucciones de empaquetado con PyInstaller y publicación como `.exe` descargable, ver la sección anterior "Para compañeros sin conocimientos de informática".
 
 ### Detección estricta de tablas
 
