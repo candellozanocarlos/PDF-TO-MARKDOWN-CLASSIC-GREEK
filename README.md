@@ -60,6 +60,7 @@ PDF (original) → .md (this script) → paste/upload to Claude → summarize, t
 | `ocr_postprocess.py` | Corrects errors typical of OCR on Classical Greek and the surrounding multilingual academic text. |
 | `pdf_table_extractor.py` | Extracts tables from digital PDFs (with `pdfplumber`) or scanned PDFs (with OpenCV + Tesseract), with strict detection. |
 | `config.py` | Centralized configuration of Tesseract and Poppler paths (via environment variables). |
+| `tests/` | Automated `pytest` test suite (unit tests + a small end-to-end fixture). |
 
 ## Prerequisites
 
@@ -246,6 +247,19 @@ If a document has no real tables, it is normal and expected for the application 
 - `REGEX_RULES_GENERAL`: generic, reusable rules (final sigma, ligatures, end-of-line hyphens, Leiden epigraphic notation...).
 - `REGEX_RULES_CORPUS_SPECIFIC`: ad hoc corrections learned from specific documents already processed (proper nouns, very specific word fragments). Not applied by default; enable them with `fix_text(text, include_corpus_specific=True)` only if you are reprocessing the same corpus as always.
 - `REGEX_RULES_GREEK`: rules specific to Greek text blocks.
+
+## Running the tests
+
+The project has an automated test suite (`pytest`) covering the OCR post-processing rules, strict table detection, dependency resolution, and CLI argument parsing:
+
+```bash
+pip install -r requirements-dev.txt
+pytest tests/ -v
+```
+
+Most tests are pure unit tests and run instantly with no external dependencies. A few end-to-end tests exercise the full OCR pipeline against a small sample PDF (`tests/fixtures/sample_with_table.pdf`) and are automatically skipped if Tesseract or Poppler are not installed on the machine running the tests.
+
+Tests run automatically on every push and pull request via GitHub Actions (see `.github/workflows/tests.yml`), on Linux, macOS, and Windows.
 
 ## Known limitations
 
