@@ -339,6 +339,147 @@ def create_language_selector(
     return frame, variables
 
 
+class DependencyDialog(ctk.CTkToplevel):
+    """
+    Shown when Tesseract and/or Poppler cannot be located. Aimed at
+    non-technical users who downloaded the packaged app and should never
+    need to open the Terminal:
+
+      - macOS + Homebrew already installed: shows an "Instalar
+        automáticamente" button that runs 'brew install' for the missing
+        packages in the background and streams the output live.
+      - macOS without Homebrew: offers to copy the official Homebrew
+        install command to the clipboard (installing Homebrew itself
+        unattended is not done here, since it needs an interactive sudo
+        password).
+      - Windows / Linux: shows the manual instructions already produced
+        by config.check_external_dependencies().
+    """
+
+    def __init__(self, parent, warnings: list[str], on_ready: Callable[[], None]) -> None:
+        super().__init__(parent)
+        self.title("Faltan programas necesarios")
+        self.geometry("560x440")
+        self.minsize(520, 400)
+        self.on_ready = on_ready
+        self._result_queue: "queue.Queue[str]" = queue.Queue()
+        self._installing = False
+
+        ctk.CTkLabel(
+            self, text="⚠️  Faltan programas externos",
+            font=ctk.CTkFont(size=17, weight="bold"),
+        ).pack(anchor="w", padx=20, pady=(18, 6))
+
+        ctk.CTkLabel(
+            self, text="\n\n".join(warnings), justify="left", wraplength=510,
+            text_color=WARNING_TEXT_COLOR,
+        ).pack(anchor="w", padx=20, pady=(0, 14))
+
+        self.log_box = ctk.CTkTextbox(self, height=150, state="disabled")
+        self.log_box.pack(fill="both", expand=True, padx=20, pady=(0, 14))
+
+        button_row = ctk.CTkFrame(self, fg_color="transparent")
+        button_row.pack(fill="x", padx=20, pady=(0, 18))
+
+        self.install_button: Optional[ctk.CTkButton] = None
+        if config.homebrew_available():
+            self.install_button = ctk.CTkButton(
+                button_row, text="🍺  Instalar automáticamente",
+                command=self._start_install,
+            )
+            self.install_button.pack(side="left")
+        elif sys.platform == "darwin":
+            ctk.CTkButton(
+                button_row, text="📋  Copiar comando para instalar Homebrew",
+                command=self._copy_brew_install_command,
+            ).pack(side="left")
+
+        ctk.CTkButton(
+            button_row, text="Cerrar", fg_color=SECONDARY_TEXT_COLOR,
+            hover_color="#6E5540", command=self.destroy,
+        ).pack(side="right")
+
+        self.after(150, self._poll_queue)
+        self.transient(parent)
+        self.grab_set()
+
+    def _log(self, text: str) -> None:
+        self.log_box.configure(state="normal")
+        self.log_box.insert("end", text + "\n")
+        self.log_box.see("end")
+        self.log_box.configure(state="disabled")
+
+    def _copy_brew_install_command(self) -> None:
+        command = (
+            '/bin/bash -c "$(curl -fsSL '
+            'https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+        )
+        self.clipboard_clear()
+        self.clipboard_append(command)
+        self._log("Comando copiado al portapapeles.")
+        self._log("1. Abre la aplicación 'Terminal' (Cmd+Espacio, escribe 'Terminal').")
+        self._log("2. Pega el comando (Cmd+V) y pulsa Enter. Te pedirá tu contraseña.")
+        self._log("3. Cuando termine, cierra esta app y vuelve a abrirla.")
+
+    def _start_install(self) -> None:
+        if self._installing or self.install_button is None:
+            return
+        self._installing = True
+        self.install_button.configure(state="disabled", text="Instalando...")
+        packages = config.missing_homebrew_packages()
+        self._log(f"Instalando con Homebrew: {', '.join(packages)}")
+        self._log("Puede tardar varios minutos la primera vez. No cierres esta ventana.\n")
+        threading.Thread(target=self._run_install, args=(packages,), daemon=True).start()
+
+    def _run_install(self, packages: list[str]) -> None:
+        success, message = config.install_homebrew_packages(
+            packages, on_output=self._result_queue.put
+        )
+        status = "OK" if success else "FAIL"
+        self._result_queue.put(f"__DONE__{status}::{message}")
+
+    def _poll_queue(self) -> None:
+        try:
+            while True:
+                item = self._result_queue.get_nowait()
+                if item.startswith("__DONE__"):
+                    status_part, _, message = item.partition("::")
+                    success = status_part.endswith("OK")
+                    self._log(("\n✅ " if success else "\n❌ ") + message)
+                    self._installing = False
+                    if success and not config.check_external_dependencies():
+                        self._log("Todo listo. Continuando con la conversión...")
+                        self.after(1200, self._finish)
+                    elif self.install_button is not None:
+                        label = "🍺  Instalar automáticamente" if success else "🍺  Reintentar instalación"
+                        self.install_button.configure(state="normal", text=label)
+                else:
+                    self._log(item)
+        except queue.Empty:
+            pass
+        finally:
+            if self.winfo_exists():
+                self.after(150, self._poll_queue)
+
+    def _finish(self) -> None:
+        self.destroy()
+        self.on_ready()
+
+
+def ensure_dependencies(parent, on_ready: Callable[[], None]) -> None:
+    """
+    Checks that Tesseract and Poppler can be located. If so, calls
+    on_ready() right away. Otherwise opens DependencyDialog, which will
+    call on_ready() itself once the missing programs have been installed
+    (macOS + Homebrew case) — the caller does not need to retry anything.
+    """
+    warnings = config.check_external_dependencies()
+    if not warnings:
+        on_ready()
+        return
+    DependencyDialog(parent, warnings, on_ready)
+
+
 def get_lang_string(variables: dict[str, ctk.BooleanVar]) -> Optional[str]:
     """
     Converts the checked boxes into the language string Tesseract expects

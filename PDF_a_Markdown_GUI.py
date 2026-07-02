@@ -26,6 +26,7 @@ import customtkinter as ctk
 from gui_common import (
     SECONDARY_TEXT_COLOR,
     ConversionEngine,
+    ensure_dependencies,
     open_file,
     open_folder,
     create_file_selector,
@@ -182,22 +183,28 @@ class App(ctk.CTk):
                 self._log("⚠ El rango de páginas no es válido (revisa 'Desde' y 'Hasta').")
                 return
 
-        self.log_box.configure(state="normal")
-        self.log_box.delete("1.0", "end")
-        self.log_box.configure(state="disabled")
-        self.progress_bar.set(0)
-        self.convert_button.configure(state="disabled", text="Convirtiendo...")
-        self.open_file_button.configure(state="disabled")
-        self.open_folder_button.configure(state="disabled")
+        def _start_conversion() -> None:
+            self.log_box.configure(state="normal")
+            self.log_box.delete("1.0", "end")
+            self.log_box.configure(state="disabled")
+            self.progress_bar.set(0)
+            self.convert_button.configure(state="disabled", text="Convirtiendo...")
+            self.open_file_button.configure(state="disabled")
+            self.open_folder_button.configure(state="disabled")
 
-        self.engine.start(
-            pdf_path=Path(pdf_path),
-            output_dir=Path(output_dir),
-            lang=lang,
-            with_tables=False,
-            start_page=start_page,
-            end_page=end_page,
-        )
+            self.engine.start(
+                pdf_path=Path(pdf_path),
+                output_dir=Path(output_dir),
+                lang=lang,
+                with_tables=False,
+                start_page=start_page,
+                end_page=end_page,
+            )
+
+        # If Tesseract/Poppler are missing, this opens a dialog offering to
+        # install them automatically (macOS + Homebrew) instead of failing
+        # outright; _start_conversion() runs once everything is ready.
+        ensure_dependencies(self, _start_conversion)
 
     def _poll_queue(self) -> None:
         try:
