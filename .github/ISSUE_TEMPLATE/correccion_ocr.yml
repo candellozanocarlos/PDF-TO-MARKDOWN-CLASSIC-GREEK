@@ -1,0 +1,45 @@
+name: "Corrección de OCR"
+description: "El .md generado tiene un error de reconocimiento de texto (griego, latín u otro idioma)."
+title: "[OCR] "
+labels: ["ocr-correction"]
+body:
+  - type: input
+    id: mal
+    attributes:
+      label: "Texto que salió mal"
+      description: "Copia y pega tal cual aparece en el .md generado."
+      placeholder: "p. ej. ἐξetvat"
+    validations:
+      required: true
+  - type: input
+    id: bien
+    attributes:
+      label: "Texto correcto"
+      description: "Cómo debería haber salido."
+      placeholder: "p. ej. ἐξεῖναι"
+    validations:
+      required: true
+  - type: textarea
+    id: contexto
+    attributes:
+      label: "Frase completa (contexto)"
+      description: "Pega la frase entera donde aparece el error, ayuda a no confundirlo con otra palabra parecida."
+    validations:
+      required: false
+  - type: dropdown
+    id: alcance
+    attributes:
+      label: "¿Este error se repite en cualquier documento o es propio de este PDF concreto?"
+      options:
+        - "No lo sé"
+        - "Cualquier documento (patrón general, p. ej. confusión de letras)"
+        - "Solo este documento (nombre propio, término muy específico)"
+    validations:
+      required: true
+  - type: input
+    id: pdf
+    attributes:
+      label: "PDF de origen (opcional)"
+      description: "Nombre o enlace del PDF, por si hace falta reproducir el error."
+    validations:
+      required: false
