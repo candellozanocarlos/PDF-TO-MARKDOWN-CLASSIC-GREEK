@@ -95,11 +95,16 @@ def _find_executable(name: str) -> Optional[str]:
       - Windows: the default Tesseract/Poppler install directories, plus
         wherever 'winget install' may have placed things.
 
-    Note: the Windows branch deliberately uses os.path (not pathlib.Path)
-    so it can be exercised in tests on any host OS by monkeypatching
-    os.name; pathlib.Path's Windows/Posix flavour is selected from the
-    real platform at class-instantiation time and cannot be monkeypatched
-    the same way.
+    Note: both branches deliberately use os.path (not pathlib.Path), so
+    each can be exercised in tests regardless of the host OS by
+    monkeypatching sys.platform/os.name. pathlib.Path picks its Windows
+    vs. Posix flavour from the real os.name at instantiation time (not
+    from a monkeypatched one), so e.g. building a WindowsPath while
+    running the test suite on a real Mac raises NotImplementedError; a
+    macOS-branch test that only monkeypatches os.name to "nt" (to
+    exercise the Windows branch) would otherwise crash inside this very
+    macOS branch, since sys.platform is still genuinely "darwin" and
+    this branch runs unconditionally first.
     """
     found = shutil.which(name)
     if found:
@@ -107,9 +112,9 @@ def _find_executable(name: str) -> Optional[str]:
 
     if sys.platform == "darwin":
         for directory in CANDIDATE_MACOS_DIRECTORIES:
-            candidate = Path(directory) / name
-            if candidate.is_file():
-                return str(candidate)
+            candidate = os.path.join(directory, name)
+            if os.path.isfile(candidate):
+                return candidate
 
     elif os.name == "nt":
         for directory in CANDIDATE_WINDOWS_DIRECTORIES:
