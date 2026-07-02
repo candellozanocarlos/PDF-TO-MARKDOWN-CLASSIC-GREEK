@@ -193,15 +193,14 @@ class TestBibliographicAbbreviations:
     def test_op_cit_spacing_is_normalized(self):
         assert ocr.fix_text("op . cit .") == "op. cit."
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Known bug: the general 'I bid' -> 'Ibid' rule strips the "
-               "trailing period, but WORD_REPLACEMENTS then re-adds "
-               "'Ibid' -> 'Ibid.', so a source that already ends in a "
-               "period ('I bid.') comes out with two ('Ibid..').",
-    )
     def test_i_bid_with_trailing_period_does_not_get_doubled(self):
         assert ocr.fix_text("I bid.") == "Ibid."
+
+    def test_already_correct_ibid_is_left_untouched(self):
+        # Regression guard for the fix above: WORD_REPLACEMENTS must not
+        # blindly append a period to a word that already has one.
+        assert ocr.fix_text("Ibid.") == "Ibid."
+        assert ocr.fix_text("ibid.") == "ibid."
 
 
 class TestFrenchGuillemets:
@@ -236,22 +235,16 @@ class TestGreekBlockBracketRules:
 
 
 class TestSemicolonAndApostropheInsideGreekWord:
-    def test_rule_removes_semicolon_when_applied_directly_to_the_rule_list(self):
-        # The regex itself is correct in isolation...
-        result = ocr._apply_regex_rules("λόγ;ος", ocr.REGEX_RULES_GREEK)
-        assert result == "λόγος"
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Known bug: ';' is not one of the bracket characters "
-               "GREEK_RUN_RE allows inside a run, so 'λόγ;ος' is split "
-               "into two separate Greek runs ('λόγ' and 'ος') before "
-               "REGEX_RULES_GREEK ever runs. The rule that strips a "
-               "stray ';' between Greek characters can therefore never "
-               "fire through the real fix_text() pipeline.",
-    )
+    # Regression guard for the fix that moved these two rules into
+    # REGEX_RULES_GENERAL (applied before segmentation, via lookaround,
+    # like the ij/rj/cp/<p/© rules above) precisely so they are reachable
+    # through the real fix_text() pipeline instead of being silently
+    # split apart by GREEK_RUN_RE first.
     def test_semicolon_inside_greek_word_is_removed_through_fix_text(self):
         assert ocr.fix_text("λόγ;ος") == "λόγος"
+
+    def test_loose_apostrophe_inside_greek_word_is_removed_through_fix_text(self):
+        assert ocr.fix_text("λόγ'ος") == "λόγος"
 
 
 class TestJoinIntraWordGreekSpaces:
@@ -302,15 +295,6 @@ class TestIdempotency:
 
 
 class TestNonBreakingSpace:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Known bug: CHAR_REPLACEMENTS is meant to normalize a "
-               "non-breaking space (U+00A0) to a regular space, but the "
-               "dict key that should be U+00A0 is actually a plain space "
-               "(U+0020) mapped to itself -- a no-op. Real U+00A0 "
-               "characters (common in text copied from PDFs) pass "
-               "through fix_text() untouched.",
-    )
     def test_nbsp_is_normalized_to_a_regular_space(self):
         assert ocr.fix_text("hola mundo") == "hola mundo"
 

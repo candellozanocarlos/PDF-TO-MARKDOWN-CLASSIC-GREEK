@@ -178,6 +178,20 @@ REGEX_RULES_GENERAL = [
      "θ",
      "© in Greek context → θ (theta)"),
 
+    # Also applied here rather than in REGEX_RULES_GREEK: ';' and the loose
+    # breathing mark are not bracket characters that GREEK_RUN_RE allows
+    # inside a run, so a Greek block gets segmented right before/after
+    # them and REGEX_RULES_GREEK (block-scoped) would never see Greek
+    # characters on both sides.
+
+    (re.compile(rf"(?<={GREEK_CHAR});(?={GREEK_CHAR})"),
+     "",
+     "Spurious ; inside a Greek word"),
+
+    (re.compile(rf"(?<={GREEK_CHAR})[̓̔''](?={GREEK_CHAR})"),
+     "",
+     "Loose breathing mark or apostrophe inside a word"),
+
     # --- Bibliographic references ---
 
     (re.compile(r"\bp p\.\s*(\d)"),
@@ -479,16 +493,6 @@ REGEX_RULES_GREEK = [
     (re.compile(r"\(ρ"),  "φ",  "(ρ → φ"),
     (re.compile(r"cp"),   "φ",  "cp → φ inside a Greek block"),
     (re.compile(r"<p"),   "φ",  "<p → φ inside a Greek block"),
-
-    # ASCII semicolon inside a Greek word (confused with the ano teleia ·)
-    (re.compile(rf"(?<={GREEK_CHAR});(?={GREEK_CHAR})"),
-     "",
-     "Spurious ; inside a Greek word"),
-
-    # Loose apostrophe / breathing mark inside a word (diacritic split off by the OCR)
-    (re.compile(rf"(?<={GREEK_CHAR})[̓̔’'](?={GREEK_CHAR})"),
-     "",
-     "Loose breathing mark or apostrophe inside a word"),
 ]
 
 # Alias for compatibility with external code
