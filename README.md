@@ -6,7 +6,7 @@ Converts a PDF containing Classical Greek text (and/or English, French, Italian,
 
 > **No computing background?** Skip everything below (cloning the repository, terminal, Python...) and go directly to the **["For non-technical users (no Git, no terminal)"](#for-non-technical-users-no-git-no-terminal)** section, which explains how to download and use the application with a double-click, no code involved.
 >
-> That said: **whether you use the code or the double-click application, you must install Tesseract OCR and Poppler separately** (they are not bundled either in the repository or inside the `.exe`/`.app`; they are external programs). There is no way around this step; download links and the command for each operating system are explained in that same section.
+> That said: **this project also depends on Tesseract OCR and Poppler**, two external programs (not Python libraries, so they are not bundled inside the repository or the `.exe`/`.app`). If you run the code from source, you need to install them yourself (see "Prerequisites" below). If you use the double-click application instead, it can install both for you automatically, with a single click and no terminal involved, see the "For non-technical users" section for details.
 
 ## How to cite this software
 
@@ -59,7 +59,7 @@ PDF (original) → .md (this script) → paste/upload to Claude → summarize, t
 | `tema_calido.json` | Visual theme (amber/brown tones) for the desktop applications. |
 | `ocr_postprocess.py` | Corrects errors typical of OCR on Classical Greek and the surrounding multilingual academic text. |
 | `pdf_table_extractor.py` | Extracts tables from digital PDFs (with `pdfplumber`) or scanned PDFs (with OpenCV + Tesseract), with strict detection. |
-| `config.py` | Centralized configuration of Tesseract and Poppler paths (via environment variables). |
+| `config.py` | Centralized configuration of Tesseract and Poppler paths (via environment variables), plus automatic installation via Homebrew (macOS) and winget (Windows). |
 | `tests/` | Automated `pytest` test suite (unit tests + a small end-to-end fixture). |
 
 ## Prerequisites
@@ -197,29 +197,39 @@ If you are going to share this tool with someone who does not know what Git or a
 
 ### What the person using it has to do (no code)
 
-**One-time prerequisite:** even though the `.exe`/`.app` bundles all the Python code, **it does not bundle Tesseract or Poppler** (they are external programs, not Python libraries, so PyInstaller does not include them). They need to be installed separately, once:
+1. Go to the repository's **Releases** page (link pinned in GitHub's right-hand sidebar, or at `.../releases`).
+2. Download the file matching your system and what you need: `.exe` on Windows, `.zip` containing an `.app` on macOS ("PDF a Markdown" for text, or "PDF a Markdown (con tablas)" if you also need tables).
+3. Open it:
+   - **Windows:** double-click. A SmartScreen warning ("Windows protected your PC") will probably appear because the `.exe` is not digitally signed; click **"More info"** → **"Run anyway"**. This is normal for software from a single developer without a paid certificate, it does not mean the program is unsafe.
+   - **macOS:** unzip the `.zip`, and for the first use, right-click the `.app` → "Open" (instead of a normal double-click), to skip the "unverified developer" warning. After that, a normal double-click works fine.
+4. Select the PDF, the output folder, the languages, and click "Convertir" ("Convert").
+
+### Tesseract and Poppler install themselves, no terminal needed
+
+These are external programs the app depends on (not Python libraries, so they cannot be bundled inside the `.exe`/`.app` itself). The first time either one is missing, a window opens inside the application offering a single button, instead of failing with a cryptic error:
+
+- **macOS:** **"🍺 Instalar automáticamente"** (or **"🍺 Instalar Homebrew y continuar"** on a brand-new Mac that does not have [Homebrew](https://brew.sh) yet). One click installs Homebrew first if needed, then Tesseract and Poppler through it, showing the progress live in the same window. If Homebrew itself has to be installed, macOS shows its own native administrator-password dialog once, the standard system prompt used by any regular installer, not a disguised terminal command; everything after that runs without further prompts.
+- **Windows:** **"🪟 Instalar automáticamente"**, using [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) (Windows' built-in package manager, present by default on Windows 10/11 kept up to date). It installs per-user (`--scope user`), so it does **not** trigger the UAC administrator prompt either.
+
+Once installation finishes, the window closes on its own and the conversion starts immediately, no need to press "Convert" again.
+
+If the automatic button is not available for some reason (a very old Windows without winget, or a network restriction), the same window falls back to the manual instructions below.
+
+<details>
+<summary><strong>Manual installation</strong> (only needed if the automatic button above is unavailable)</summary>
 
 - **Windows:**
   1. Tesseract OCR: download the installer from [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki) and run it (leave the default options; make sure to check the Greek language pack, "Greek", if the installer offers it as an option).
   2. Poppler: download the `.zip` from [oschwartz10612/poppler-windows](https://github.com/oschwartz10612/poppler-windows/releases), unzip it into, e.g., `C:\poppler`.
   3. If the application does not find them automatically, set the `TESSERACT_CMD` and `POPPLER_PATH` environment variables (Control Panel → System → Advanced settings → Environment Variables) pointing to Tesseract's `.exe` path and to Poppler's `bin` folder respectively.
 
-- **macOS:** with [Homebrew](https://brew.sh) installed, open the Terminal app (comes with macOS) and run once:
+- **macOS:** open the Terminal app (comes with macOS) and run once:
   ```bash
   brew install tesseract tesseract-lang poppler
   ```
-  (`tesseract-lang` includes the Classical Greek package and other languages; without it, Tesseract only recognizes English.)
+  (`tesseract-lang` includes the Classical Greek package and other languages; without it, Tesseract only recognizes English. Requires [Homebrew](https://brew.sh) installed first.)
 
-If either one is missing, the application detects it when you try to convert and tells you clearly in the window's own log (with installation instructions), instead of failing with a cryptic error.
-
-**Normal usage, once the above is installed:**
-
-1. Go to the repository's **Releases** page (link pinned in GitHub's right-hand sidebar, or at `.../releases`).
-2. Download the file matching your system and what you need: `.exe` on Windows, `.zip` containing an `.app` on macOS ("PDF a Markdown" for text, or "PDF a Markdown (con tablas)" if you also need tables).
-3. Open it:
-   - **Windows:** double-click. A SmartScreen warning ("Windows protected your PC") will probably appear because the `.exe` is not digitally signed; click **"More info"** → **"Run anyway"**. This is normal for software from a single developer without a paid certificate, it does not mean the program is unsafe.
-   - **macOS:** unzip the `.zip`, and for the first use, right-click the `.app` → "Open" (instead of a normal double-click), to skip the "unverified developer" warning. After that, a normal double-click works fine.
-4. Use the window as normal: select the PDF, the output folder, the languages, and click "Convertir" ("Convert").
+</details>
 
 ## Strict table detection
 

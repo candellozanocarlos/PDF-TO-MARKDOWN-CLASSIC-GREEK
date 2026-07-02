@@ -343,16 +343,20 @@ class DependencyDialog(ctk.CTkToplevel):
     """
     Shown when Tesseract and/or Poppler cannot be located. Aimed at
     non-technical users who downloaded the packaged app and should never
-    need to open the Terminal, even on a brand new Mac without Homebrew:
+    need to open a terminal/PowerShell window:
 
       - macOS: a single "Instalar automáticamente" button installs
         whatever is missing. If Homebrew itself is not present, it is
         installed first (macOS shows its own native administrator
         password dialog for the one step that needs it), and then
         Tesseract/Poppler are installed right after, in the same click.
-      - Windows / Linux: shows the manual instructions already produced
-        by config.check_external_dependencies() (there is no equivalent
-        one-click package manager story there).
+      - Windows: the same button runs 'winget install' for Tesseract and
+        Poppler with --scope user, which does not need the UAC
+        administrator prompt. winget itself ships with Windows 10/11, so
+        no separate installer-of-an-installer step is needed here.
+      - Linux, or Windows without winget (rare, very old systems): shows
+        the manual instructions already produced by
+        config.check_external_dependencies().
     """
 
     def __init__(self, parent, warnings: list[str], on_ready: Callable[[], None]) -> None:
@@ -388,6 +392,11 @@ class DependencyDialog(ctk.CTkToplevel):
             )
             self.install_button = ctk.CTkButton(button_row, text=label, command=self._start_install)
             self.install_button.pack(side="left")
+        elif os.name == "nt" and config.winget_available():
+            self.install_button = ctk.CTkButton(
+                button_row, text="🪟  Instalar automáticamente", command=self._start_install,
+            )
+            self.install_button.pack(side="left")
 
         ctk.CTkButton(
             button_row, text="Cerrar", fg_color=SECONDARY_TEXT_COLOR,
@@ -412,6 +421,12 @@ class DependencyDialog(ctk.CTkToplevel):
         threading.Thread(target=self._run_install, daemon=True).start()
 
     def _run_install(self) -> None:
+        if sys.platform == "darwin":
+            self._run_install_macos()
+        elif os.name == "nt":
+            self._run_install_windows()
+
+    def _run_install_macos(self) -> None:
         # Stage 1: Homebrew itself, only if it is not already there. May
         # show macOS's native administrator-password dialog once.
         if not config.homebrew_available():
@@ -433,6 +448,17 @@ class DependencyDialog(ctk.CTkToplevel):
         status = "OK" if success else "FAIL"
         self._result_queue.put(f"__DONE__{status}::{message}")
 
+    def _run_install_windows(self) -> None:
+        packages = config.missing_winget_packages()
+        if not packages:
+            self._result_queue.put("__DONE__OK::No faltaba nada más por instalar.")
+            return
+        self._result_queue.put(f"__LOG__Instalando con winget: {', '.join(packages)}")
+        self._result_queue.put("__LOG__Puede tardar varios minutos. No cierres esta ventana.\n")
+        success, message = config.install_winget_packages(packages, on_output=self._result_queue.put)
+        status = "OK" if success else "FAIL"
+        self._result_queue.put(f"__DONE__{status}::{message}")
+
     def _poll_queue(self) -> None:
         try:
             while True:
@@ -448,8 +474,9 @@ class DependencyDialog(ctk.CTkToplevel):
                         self._log("Todo listo. Continuando con la conversión...")
                         self.after(1200, self._finish)
                     elif self.install_button is not None:
-                        label = "🍺  Instalar automáticamente" if success else "🍺  Reintentar instalación"
-                        self.install_button.configure(state="normal", text=label)
+                        current_text = self.install_button.cget("text")
+                        retry_text = current_text.split("  ", 1)[0] + "  Reintentar instalación"
+                        self.install_button.configure(state="normal", text=retry_text)
                 else:
                     self._log(item)
         except queue.Empty:

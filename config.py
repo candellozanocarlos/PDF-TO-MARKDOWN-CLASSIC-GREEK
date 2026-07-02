@@ -59,41 +59,108 @@ DEFAULT_POPPLER_PATH_WINDOWS = r"C:\poppler\Library\bin"
 # /opt/local/bin       -> MacPorts
 CANDIDATE_MACOS_DIRECTORIES = ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"]
 
+# Fixed directories where the Windows installers of Tesseract/Poppler are
+# known to land by default.
+CANDIDATE_WINDOWS_DIRECTORIES = [
+    r"C:\Program Files\Tesseract-OCR",
+    r"C:\poppler\Library\bin",
+]
+
+
+def _winget_search_roots() -> list[str]:
+    """
+    Where 'winget install' leaves things on Windows:
+      - Portable-type packages get a symlink in the per-user "Links"
+        directory (which winget also adds to PATH, but a process already
+        running, like our app, does not see that PATH update until it is
+        relaunched, hence checking the folder directly here too).
+      - Everything winget installs (portable or not) lives somewhere
+        under the "Packages" directory, one subfolder per package.
+    """
+    local_appdata = os.environ.get("LOCALAPPDATA")
+    if not local_appdata:
+        return []
+    base = os.path.join(local_appdata, "Microsoft", "WinGet")
+    return [os.path.join(base, "Links"), os.path.join(base, "Packages")]
+
 
 def _find_executable(name: str) -> Optional[str]:
     """
     Looks up an executable by name, in this order: the process's inherited
-    PATH (shutil.which), and on macOS also the typical Homebrew/MacPorts
-    directories (which a process launched by double-clicking from Finder
-    does not see, even if the tool is perfectly installed).
+    PATH (shutil.which), and then platform-specific fallback directories
+    that a process launched by double-clicking (Finder on macOS, Explorer
+    on Windows) does not inherit in its PATH even when the tool is
+    perfectly installed:
+      - macOS: typical Homebrew/MacPorts directories.
+      - Windows: the default Tesseract/Poppler install directories, plus
+        wherever 'winget install' may have placed things.
+
+    Note: the Windows branch deliberately uses os.path (not pathlib.Path)
+    so it can be exercised in tests on any host OS by monkeypatching
+    os.name; pathlib.Path's Windows/Posix flavour is selected from the
+    real platform at class-instantiation time and cannot be monkeypatched
+    the same way.
     """
     found = shutil.which(name)
     if found:
         return found
+
     if sys.platform == "darwin":
         for directory in CANDIDATE_MACOS_DIRECTORIES:
             candidate = Path(directory) / name
             if candidate.is_file():
                 return str(candidate)
+
+    elif os.name == "nt":
+        for directory in CANDIDATE_WINDOWS_DIRECTORIES:
+            candidate = os.path.join(directory, name)
+            if os.path.isfile(candidate):
+                return candidate
+        for root in _winget_search_roots():
+            if not os.path.isdir(root):
+                continue
+            direct = os.path.join(root, name)
+            if os.path.isfile(direct):
+                return direct
+            for dirpath, _dirnames, filenames in os.walk(root):
+                if name in filenames:
+                    return os.path.join(dirpath, name)
+
     return None
 
 
-TESSERACT_CMD = os.environ.get("TESSERACT_CMD") or (
-    DEFAULT_TESSERACT_CMD_WINDOWS if os.name == "nt" else (_find_executable("tesseract") or "tesseract")
-)
+def refresh_paths() -> None:
+    """
+    (Re)computes TESSERACT_CMD and POPPLER_PATH from scratch. Called once
+    when the module is first imported, and again after successfully
+    installing Tesseract/Poppler (via Homebrew or winget), since a program
+    that just got installed was obviously not found the first time around.
+    """
+    global TESSERACT_CMD, POPPLER_PATH
 
-if os.environ.get("POPPLER_PATH"):
-    POPPLER_PATH = os.environ["POPPLER_PATH"]
-elif os.name == "nt":
-    POPPLER_PATH = DEFAULT_POPPLER_PATH_WINDOWS
-else:
-    # On Linux/macOS, derive the directory from wherever pdftoppm was found
-    # (normal PATH, or the Homebrew/MacPorts directories above).
-    _pdftoppm = _find_executable("pdftoppm")
-    POPPLER_PATH = str(Path(_pdftoppm).parent) if _pdftoppm else None
+    TESSERACT_CMD = os.environ.get("TESSERACT_CMD") or (
+        _find_executable("tesseract.exe" if os.name == "nt" else "tesseract")
+        or (DEFAULT_TESSERACT_CMD_WINDOWS if os.name == "nt" else "tesseract")
+    )
 
-# Apply the Tesseract path once, for the whole project.
-pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+    if os.environ.get("POPPLER_PATH"):
+        POPPLER_PATH = os.environ["POPPLER_PATH"]
+    else:
+        _pdftoppm = _find_executable("pdftoppm.exe" if os.name == "nt" else "pdftoppm")
+        if _pdftoppm:
+            POPPLER_PATH = str(Path(_pdftoppm).parent)
+        elif os.name == "nt":
+            POPPLER_PATH = DEFAULT_POPPLER_PATH_WINDOWS
+        else:
+            POPPLER_PATH = None
+
+    # Apply the Tesseract path for the whole project.
+    pytesseract.pytesseract.tesseract_cmd = TESSERACT_CMD
+
+
+TESSERACT_CMD: str
+POPPLER_PATH: Optional[str]
+refresh_paths()
 
 
 def _locate_poppler() -> Optional[str]:
@@ -291,7 +358,92 @@ def install_homebrew_packages(
             on_output(line.rstrip())
         process.wait()
         if process.returncode == 0:
+            refresh_paths()
             return True, "Instalación completada correctamente."
         return False, f"'brew install' terminó con un error (código {process.returncode})."
     except Exception as exc:  # noqa: BLE001
         return False, f"Error al ejecutar Homebrew: {exc}"
+
+
+# ---------------------------------------------------------------------------
+# Automatic installation via winget (Windows only)
+# ---------------------------------------------------------------------------
+# winget (Windows Package Manager / "App Installer") ships pre-installed on
+# Windows 11 and on Windows 10 systems kept up to date through the Microsoft
+# Store, so it can be assumed present on the large majority of machines
+# without asking the person to install anything extra first. Unlike
+# Homebrew on macOS, winget installers can run fully silently without any
+# extra administrator prompt handling on our side: '--silent' together
+# with '--scope user' avoids the UAC elevation dialog entirely for both
+# Tesseract and Poppler, since neither needs to write outside the user's
+# own profile.
+
+WINGET_PACKAGE_IDS = {
+    "tesseract": "UB-Mannheim.TesseractOCR",
+    "poppler": "oschwartz10612.Poppler",
+}
+
+
+def winget_available() -> bool:
+    """True on Windows if the 'winget' executable can be located."""
+    return os.name == "nt" and shutil.which("winget") is not None
+
+
+def missing_winget_packages() -> list[str]:
+    """
+    Returns the winget package IDs that still need to be installed, for
+    whichever of Tesseract/Poppler cannot currently be found.
+    """
+    packages: list[str] = []
+    if _find_executable("tesseract.exe") is None:
+        packages.append(WINGET_PACKAGE_IDS["tesseract"])
+    if _locate_poppler() is None:
+        packages.append(WINGET_PACKAGE_IDS["poppler"])
+    return packages
+
+
+def install_winget_packages(
+    packages: list[str], on_output: Callable[[str], None]
+) -> tuple[bool, str]:
+    """
+    Runs 'winget install' for each package ID, streaming output live.
+    Uses --scope user so it does not need the UAC administrator prompt
+    (both Tesseract and Poppler work fine installed per-user). Returns
+    (success, message).
+    """
+    winget = shutil.which("winget")
+    if not winget:
+        return False, "No se ha encontrado winget en este equipo."
+    if not packages:
+        return True, "No hay nada que instalar."
+
+    all_ok = True
+    for package_id in packages:
+        on_output(f"Instalando {package_id}...")
+        try:
+            process = subprocess.Popen(
+                [
+                    winget, "install", "--id", package_id, "--exact",
+                    "--scope", "user", "--silent",
+                    "--accept-package-agreements", "--accept-source-agreements",
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+            assert process.stdout is not None
+            for line in process.stdout:
+                on_output(line.rstrip())
+            process.wait()
+            if process.returncode != 0:
+                all_ok = False
+                on_output(f"⚠ {package_id} terminó con código {process.returncode}.")
+        except Exception as exc:  # noqa: BLE001
+            all_ok = False
+            on_output(f"⚠ Error instalando {package_id}: {exc}")
+
+    refresh_paths()
+    if all_ok:
+        return True, "Instalación completada correctamente."
+    return False, "Alguno de los programas no se pudo instalar (revisa el registro de arriba)."
