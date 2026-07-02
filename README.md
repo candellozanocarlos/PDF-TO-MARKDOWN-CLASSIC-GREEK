@@ -1,6 +1,6 @@
 # PDF-TO-MARKDOWN-CLASSIC-GREEK
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21129008.svg)](https://doi.org/10.5281/zenodo.21129008)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21130682.svg)](https://doi.org/10.5281/zenodo.21130682)
 
 Converts a PDF containing Classical Greek text (and/or English, French, Italian, etc.) into a Markdown (`.md`) file using optical character recognition (OCR), then corrects the errors typical of Greek OCR.
 
@@ -12,7 +12,7 @@ Converts a PDF containing Classical Greek text (and/or English, French, Italian,
 
 If you use this tool in your research, please cite it as:
 
-> Candel Lozano, C. (2026). *PDF-TO-MARKDOWN-CLASSIC-GREEK: OCR-based PDF-to-Markdown conversion with automatic post-processing for Classical Greek* (v1.8) [Software]. Zenodo. https://doi.org/10.5281/zenodo.21129008
+> Candel Lozano, C. (2026). *PDF-TO-MARKDOWN-CLASSIC-GREEK: OCR-based PDF-to-Markdown conversion with automatic post-processing for Classical Greek* (v1.10) [Software]. Zenodo. https://doi.org/10.5281/zenodo.21130682
 
 In BibTeX format:
 
@@ -24,9 +24,9 @@ In BibTeX format:
                    post-processing for Classical Greek}},
   year         = 2026,
   publisher    = {Zenodo},
-  version      = {v1.8},
-  doi          = {10.5281/zenodo.21129008},
-  url          = {https://doi.org/10.5281/zenodo.21129008}
+  version      = {v1.10},
+  doi          = {10.5281/zenodo.21130682},
+  url          = {https://doi.org/10.5281/zenodo.21130682}
 }
 ```
 

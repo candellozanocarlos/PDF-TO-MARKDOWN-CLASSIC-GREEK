@@ -379,9 +379,26 @@ def install_homebrew_packages(
 # own profile.
 
 WINGET_PACKAGE_IDS = {
+    "vcredist": "Microsoft.VCRedist.2015+.x64",
     "tesseract": "UB-Mannheim.TesseractOCR",
     "poppler": "oschwartz10612.Poppler",
 }
+
+
+def _vcredist_installed() -> bool:
+    """
+    True if the Visual C++ Redistributable (2015-2022) appears to be
+    installed, checked via the presence of vcruntime140.dll in
+    System32. This is the DLL that pdfinfo.exe/pdftoppm.exe (Poppler)
+    and Tesseract need to even start; without it they fail with a
+    generic Windows "VCRUNTIME140.dll was not found" dialog that has
+    nothing to do with Poppler/Tesseract themselves. Most Windows
+    machines already have it (many other programs install it as a side
+    effect), but a truly clean system, such as Windows Sandbox, does
+    not.
+    """
+    system_root = os.environ.get("SystemRoot", r"C:\Windows")
+    return os.path.isfile(os.path.join(system_root, "System32", "vcruntime140.dll"))
 
 
 def winget_available() -> bool:
@@ -391,10 +408,16 @@ def winget_available() -> bool:
 
 def missing_winget_packages() -> list[str]:
     """
-    Returns the winget package IDs that still need to be installed, for
-    whichever of Tesseract/Poppler cannot currently be found.
+    Returns the winget package IDs that still need to be installed:
+    the Visual C++ Redistributable (a shared dependency both Tesseract
+    and Poppler need just to launch), plus whichever of Tesseract/
+    Poppler cannot currently be found. Listed in install order, since
+    the redistributable has to be there before the other two are worth
+    installing.
     """
     packages: list[str] = []
+    if not _vcredist_installed():
+        packages.append(WINGET_PACKAGE_IDS["vcredist"])
     if _find_executable("tesseract.exe") is None:
         packages.append(WINGET_PACKAGE_IDS["tesseract"])
     if _locate_poppler() is None:
