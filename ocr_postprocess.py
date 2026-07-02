@@ -87,7 +87,7 @@ CHAR_REPLACEMENTS = {
     "\r": "\n",
 
     # Special spaces → normal space
-    " ": " ",      # non-breaking space
+    " ": " ",  # non-breaking space (was a plain space by mistake, a no-op)
     "​": "",       # zero-width space
     "‌": "",       # zero-width non-joiner
     "﻿": "",       # BOM
@@ -535,8 +535,17 @@ WORD_REPLACEMENTS = {
 }
 
 # Patterns compiled once when the module loads (avoids recompiling on every call)
+# For entries that just append a trailing period (e.g. "ibid" -> "ibid."), a
+# negative lookahead skips the match when that period is already there, so
+# an already-correct "Ibid." in the source is not turned into "Ibid..".
 _WORD_PATTERNS = [
-    (re.compile(r"\b" + re.escape(error) + r"\b", re.UNICODE), correct)
+    (
+        re.compile(
+            r"\b" + re.escape(error) + r"\b" + (r"(?!\.)" if correct == error + "." else ""),
+            re.UNICODE,
+        ),
+        correct,
+    )
     for error, correct in WORD_REPLACEMENTS.items()
 ]
 
