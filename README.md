@@ -198,7 +198,14 @@ If you are going to share this tool with someone who does not know what Git or a
 ### What the person using it has to do (no code)
 
 1. Go to the repository's **Releases** page (link pinned in GitHub's right-hand sidebar, or at `.../releases`).
-2. Download the file matching your system and what you need: `.exe` on Windows, `.zip` containing an `.app` on macOS ("PDF a Markdown" for text, or "PDF a Markdown (con tablas)" if you also need tables).
+2. Download the file matching your system and what you need:
+   - **Windows:** `.exe` (works on any Windows 10/11 PC, no need to pick anything else).
+   - **macOS:** `.zip` containing an `.app`, but here you must pick the right one for your Mac's chip, **the two are not interchangeable**:
+     - **Apple Silicon** (M1, M2, M3, M4...): the file labeled **"macOS Apple Silicon"**.
+     - **Intel** (any Mac from before the chip transition in late 2020): the file labeled **"macOS Intel"**.
+     - Not sure which one you have? Apple menu (top-left corner) → "About This Mac": if it says "Chip" followed by "Apple M...", you have Apple Silicon; if it says "Processor" followed by "Intel Core...", you have Intel.
+     - Opening the wrong one gives a **"is not compatible with this Mac"** error when double-clicking (not a permissions issue, not a broken download, just the wrong architecture).
+   - Each of the two macOS builds also comes in a "text only" version ("PDF a Markdown") and a "with tables" version ("PDF a Markdown (con tablas)"), same as on Windows.
 3. Open it:
    - **Windows:** double-click. A SmartScreen warning ("Windows protected your PC") will probably appear because the `.exe` is not digitally signed; click **"More info"** → **"Run anyway"**. This is normal for software from a single developer without a paid certificate, it does not mean the program is unsafe.
    - **macOS:** unzip the `.zip`, and for the first use, right-click the `.app` → "Open" (instead of a normal double-click), to skip the "unverified developer" warning. After that, a normal double-click works fine.
