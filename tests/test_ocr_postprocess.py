@@ -130,3 +130,195 @@ class TestHyphenatedLineBreaks:
     def test_end_of_line_hyphen_is_rejoined(self):
         result = ocr.fix_text("exam-\nple")
         assert result == "example"
+
+
+class TestUnicodeNormalization:
+    def test_decomposed_polytonic_sequence_is_composed_to_nfc(self):
+        # Some scanners emit alpha + combining smooth breathing + combining
+        # iota subscript as three separate codepoints instead of the single
+        # precomposed U+1F80 (ᾀ). fix_text must normalize to NFC first.
+        decomposed = "ᾀ"
+        assert ocr.fix_text(decomposed) == "ᾀ"
+
+
+class TestWhitespaceAndPunctuationGeneral:
+    def test_multiple_spaces_collapse_to_one(self):
+        assert ocr.fix_text("a    b") == "a b"
+
+    def test_space_before_punctuation_is_removed(self):
+        assert ocr.fix_text("hola , mundo !") == "hola, mundo!"
+
+    def test_multiple_blank_lines_collapse_to_one(self):
+        assert ocr.fix_text("a\n\n\n\nb") == "a\n\nb"
+
+    def test_tabs_become_spaces(self):
+        assert ocr.fix_text("a\tb\tc") == "a b c"
+
+    def test_column_separator_line_is_removed(self):
+        assert ocr.fix_text("text\n---\nmore") == "text\n\nmore"
+
+
+class TestNumericLatinConfusions:
+    def test_digit_one_between_latin_letters_becomes_l(self):
+        assert ocr.fix_text("wor1d") == "world"
+
+    def test_digit_zero_between_latin_letters_becomes_o(self):
+        assert ocr.fix_text("c0ntent") == "content"
+
+    def test_leading_digit_not_between_letters_is_untouched(self):
+        # "1" is at the start of the word (nothing before it), so the
+        # lookbehind for a preceding Latin letter fails and it must not
+        # be converted to 'l'.
+        assert ocr.fix_text("1nformation") == "1nformation"
+
+
+class TestGreekContextMultiCharConfusions:
+    def test_ij_next_to_greek_becomes_eta(self):
+        assert ocr.fix_text("λόγijος") == "λόγηος"
+
+    def test_rj_next_to_greek_becomes_eta(self):
+        assert ocr.fix_text("λόγrjος") == "λόγηος"
+
+    def test_cp_next_to_greek_becomes_phi(self):
+        assert ocr.fix_text("λόγcpος") == "λόγφος"
+
+    def test_copyright_sign_next_to_greek_becomes_theta(self):
+        assert ocr.fix_text("λόγ©ος") == "λόγθος"
+
+
+class TestBibliographicAbbreviations:
+    def test_p_p_dot_becomes_pp_dot(self):
+        assert ocr.fix_text("see p p. 12") == "see pp. 12"
+
+    def test_op_cit_spacing_is_normalized(self):
+        assert ocr.fix_text("op . cit .") == "op. cit."
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="Known bug: the general 'I bid' -> 'Ibid' rule strips the "
+               "trailing period, but WORD_REPLACEMENTS then re-adds "
+               "'Ibid' -> 'Ibid.', so a source that already ends in a "
+               "period ('I bid.') comes out with two ('Ibid..').",
+    )
+    def test_i_bid_with_trailing_period_does_not_get_doubled(self):
+        assert ocr.fix_text("I bid.") == "Ibid."
+
+
+class TestFrenchGuillemets:
+    def test_space_after_opening_guillemet_is_normalized(self):
+        assert ocr.fix_text("«  hola") == "« hola"
+
+    def test_space_before_closing_guillemet_is_normalized(self):
+        assert ocr.fix_text("hola  »") == "hola »"
+
+
+class TestIPANotation:
+    def test_slash_9_colon_slash_becomes_open_o_length_mark(self):
+        assert ocr.fix_text("/9:/") == "/ɔː/"
+
+    def test_bracket_9_colon_becomes_open_o_length_mark(self):
+        assert ocr.fix_text("[9:]") == "[ɔː]"
+
+    def test_aspiration_mark_is_converted(self):
+        assert ocr.fix_text('/"p') == "/ʰp"
+
+
+class TestGreekBlockBracketRules:
+    def test_paren_rho_inside_a_leiden_bracket_run_becomes_phi(self):
+        # '(' is one of the bracket characters GREEK_RUN_RE allows inside a
+        # run, so "λό(ργος" is segmented as a single Greek block and the
+        # '(ρ' -> 'φ' rule (REGEX_RULES_GREEK) can act on it.
+        assert ocr.fix_text("λό(ργος") == "λόφγος"
+
+    def test_multiple_leiden_gaps_stay_in_a_single_run(self):
+        runs = [m.group(0) for m in ocr.GREEK_RUN_RE.finditer("ἀγαθ[ο]ῦ[τι]ος")]
+        assert runs == ["ἀγαθ[ο]ῦ[τι]ος"]
+
+
+class TestSemicolonAndApostropheInsideGreekWord:
+    def test_rule_removes_semicolon_when_applied_directly_to_the_rule_list(self):
+        # The regex itself is correct in isolation...
+        result = ocr._apply_regex_rules("λόγ;ος", ocr.REGEX_RULES_GREEK)
+        assert result == "λόγος"
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason="Known bug: ';' is not one of the bracket characters "
+               "GREEK_RUN_RE allows inside a run, so 'λόγ;ος' is split "
+               "into two separate Greek runs ('λόγ' and 'ος') before "
+               "REGEX_RULES_GREEK ever runs. The rule that strips a "
+               "stray ';' between Greek characters can therefore never "
+               "fire through the real fix_text() pipeline.",
+    )
+    def test_semicolon_inside_greek_word_is_removed_through_fix_text(self):
+        assert ocr.fix_text("λόγ;ος") == "λόγος"
+
+
+class TestJoinIntraWordGreekSpaces:
+    def test_two_short_fragments_are_joined(self):
+        assert ocr._join_intra_word_greek_spaces("λό γος") == "λόγος"
+
+    def test_stopword_fragment_is_not_joined(self):
+        assert ocr._join_intra_word_greek_spaces("καὶ λόγος") == "καὶ λόγος"
+
+    def test_two_long_fragments_are_not_joined(self):
+        # Both sides have >= 4 characters, so they are treated as distinct
+        # complete words rather than a single word split by a stray space.
+        assert ocr._join_intra_word_greek_spaces("ἄνθρωπος σοφίας") == "ἄνθρωπος σοφίας"
+
+
+class TestVerboseOutput:
+    def test_verbose_prints_before_and_after_character_counts(self, capsys):
+        ocr.fix_text("hola", verbose=True)
+        captured = capsys.readouterr()
+        assert "Characters before: 4" in captured.out
+        assert "Characters after:" in captured.out
+
+
+class TestEmptyAndWhitespaceInput:
+    def test_empty_string_returns_empty_string(self):
+        assert ocr.fix_text("") == ""
+
+    def test_whitespace_only_input_is_stripped_to_empty(self):
+        assert ocr.fix_text("   \n\n  ") == ""
+
+
+class TestPageNumberEdgeCase:
+    def test_input_that_is_only_a_page_number_is_fully_removed(self):
+        # A "document" that is nothing but a 1-4 digit line is treated as
+        # a page-number artifact and stripped entirely, not just trimmed.
+        assert ocr.fix_text("1234") == ""
+
+
+class TestIdempotency:
+    def test_running_fix_text_twice_produces_the_same_result(self):
+        # Regression guard: re-running the pipeline on already-clean text
+        # (e.g. if a document gets processed twice by mistake) must not
+        # keep mutating it.
+        messy = "λόγoς  ,  ἐστι.\n\nσοφος-\nεἶναι"
+        once = ocr.fix_text(messy)
+        twice = ocr.fix_text(once)
+        assert once == twice
+
+
+class TestNonBreakingSpace:
+    @pytest.mark.xfail(
+        strict=True,
+        reason="Known bug: CHAR_REPLACEMENTS is meant to normalize a "
+               "non-breaking space (U+00A0) to a regular space, but the "
+               "dict key that should be U+00A0 is actually a plain space "
+               "(U+0020) mapped to itself -- a no-op. Real U+00A0 "
+               "characters (common in text copied from PDFs) pass "
+               "through fix_text() untouched.",
+    )
+    def test_nbsp_is_normalized_to_a_regular_space(self):
+        assert ocr.fix_text("hola mundo") == "hola mundo"
+
+
+class TestRegexRulesAlias:
+    def test_alias_matches_concatenation_of_the_three_rule_lists(self):
+        assert ocr.REGEX_RULES == (
+            ocr.REGEX_RULES_GENERAL
+            + ocr.REGEX_RULES_CORPUS_SPECIFIC
+            + ocr.REGEX_RULES_GREEK
+        )
