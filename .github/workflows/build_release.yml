@@ -1,9 +1,10 @@
 name: Build and publish executables
 
 # Triggers automatically every time you push a new version tag (e.g.
-# v1.1). GitHub builds the Windows .exe and the macOS .app on real
-# machines of each operating system (without you needing to own a Mac)
-# and attaches them to the corresponding Release.
+# v1.1). GitHub builds the Windows .exe and the macOS .app (both for
+# Apple Silicon and for Intel Macs, they are NOT interchangeable) on
+# real machines of each operating system/architecture (without you
+# needing to own a Mac) and attaches them to the corresponding Release.
 #
 # How to publish a new version from now on:
 #   git tag v1.1
@@ -33,7 +34,18 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            label: windows
+          # macos-latest currently means Apple Silicon (arm64). An arm64
+          # .app cannot run at all on an Intel Mac (there is no Rosetta
+          # translation in that direction), hence the separate Intel job
+          # below: without it, every Intel Mac user gets "this app is
+          # not compatible with this Mac" when trying to open it.
+          - os: macos-latest
+            label: macos-applesilicon
+          - os: macos-15-intel
+            label: macos-intel
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -53,34 +65,46 @@ jobs:
 
       # --- Windows: builds a single .exe per application ---
       - name: Build "PDF a Markdown" (Windows)
-        if: runner.os == 'Windows'
+        if: matrix.label == 'windows'
         run: pyinstaller --onefile --windowed --name "PDF a Markdown" --add-data "tema_calido.json;." PDF_a_Markdown_GUI.py
 
       - name: Build "PDF a Markdown (con tablas)" (Windows)
-        if: runner.os == 'Windows'
+        if: matrix.label == 'windows'
         run: pyinstaller --onefile --windowed --name "PDF a Markdown (con tablas)" --add-data "tema_calido.json;." PDF_a_Markdown_con_Tablas_GUI.py
 
-      # --- macOS: builds an .app bundle per application, zipped ---
+      # --- macOS: builds an .app bundle per application, zipped.
+      # Runs on both the Apple Silicon and the Intel jobs; the resulting
+      # .app only works on the architecture it was built on, hence the
+      # architecture-specific zip name below (so both can be attached to
+      # the same Release without overwriting each other). ---
       - name: Build "PDF a Markdown" (macOS)
-        if: runner.os == 'macOS'
+        if: matrix.label == 'macos-applesilicon' || matrix.label == 'macos-intel'
         run: pyinstaller --windowed --name "PDF a Markdown" --add-data "tema_calido.json:." PDF_a_Markdown_GUI.py
 
       - name: Build "PDF a Markdown (con tablas)" (macOS)
-        if: runner.os == 'macOS'
+        if: matrix.label == 'macos-applesilicon' || matrix.label == 'macos-intel'
         run: pyinstaller --windowed --name "PDF a Markdown (con tablas)" --add-data "tema_calido.json:." PDF_a_Markdown_con_Tablas_GUI.py
 
-      - name: Zip the macOS apps
-        if: runner.os == 'macOS'
+      - name: Zip the macOS apps (Apple Silicon)
+        if: matrix.label == 'macos-applesilicon'
         run: |
           cd dist
-          zip -r "PDF a Markdown (macOS).zip" "PDF a Markdown.app"
-          zip -r "PDF a Markdown (con tablas) (macOS).zip" "PDF a Markdown (con tablas).app"
+          zip -r "PDF a Markdown (macOS Apple Silicon).zip" "PDF a Markdown.app"
+          zip -r "PDF a Markdown (con tablas) (macOS Apple Silicon).zip" "PDF a Markdown (con tablas).app"
+          rm -rf "PDF a Markdown.app" "PDF a Markdown (con tablas).app"
+
+      - name: Zip the macOS apps (Intel)
+        if: matrix.label == 'macos-intel'
+        run: |
+          cd dist
+          zip -r "PDF a Markdown (macOS Intel).zip" "PDF a Markdown.app"
+          zip -r "PDF a Markdown (con tablas) (macOS Intel).zip" "PDF a Markdown (con tablas).app"
           rm -rf "PDF a Markdown.app" "PDF a Markdown (con tablas).app"
 
       - name: Save the built files
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.os }}
+          name: build-${{ matrix.label }}
           path: |
             dist/*.exe
             dist/*.zip
@@ -89,7 +113,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Download the files from both systems
+      - name: Download the files from all systems/architectures
         uses: actions/download-artifact@v4
         with:
           path: artifacts

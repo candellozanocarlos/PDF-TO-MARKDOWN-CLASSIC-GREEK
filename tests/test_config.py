@@ -45,6 +45,98 @@ class TestFindExecutable:
 
         assert config._find_executable("tesseract") is None
 
+    def test_windows_fixed_directory_fallback_is_used(self, monkeypatch, tmp_path):
+        # Simulate the default Tesseract-OCR install directory not being
+        # on PATH, as happens with a double-clicked packaged .exe.
+        fake_dir = tmp_path / "Tesseract-OCR"
+        fake_dir.mkdir()
+        (fake_dir / "tesseract.exe").write_text("stub\n")
+
+        monkeypatch.setattr(config.shutil, "which", lambda name: None)
+        monkeypatch.setattr(config.os, "name", "nt")
+        monkeypatch.setattr(config, "CANDIDATE_WINDOWS_DIRECTORIES", [str(fake_dir)])
+        monkeypatch.setattr(config, "_winget_search_roots", lambda: [])
+
+        found = config._find_executable("tesseract.exe")
+        assert found == str(fake_dir / "tesseract.exe")
+
+    def test_windows_winget_links_fallback_is_used(self, monkeypatch, tmp_path):
+        # Simulate a portable package winget just installed: a symlink (or
+        # here, a plain file standing in for one) in its per-user "Links"
+        # directory, which is not yet on PATH for our already-running app.
+        links_dir = tmp_path / "WinGet" / "Links"
+        links_dir.mkdir(parents=True)
+        (links_dir / "pdftoppm.exe").write_text("stub\n")
+
+        monkeypatch.setattr(config.shutil, "which", lambda name: None)
+        monkeypatch.setattr(config.os, "name", "nt")
+        monkeypatch.setattr(config, "CANDIDATE_WINDOWS_DIRECTORIES", [])
+        monkeypatch.setattr(config, "_winget_search_roots", lambda: [links_dir])
+
+        found = config._find_executable("pdftoppm.exe")
+        assert found == str(links_dir / "pdftoppm.exe")
+
+    def test_windows_fallbacks_are_not_used_on_other_platforms(self, monkeypatch, tmp_path):
+        fake_dir = tmp_path / "Tesseract-OCR"
+        fake_dir.mkdir()
+        (fake_dir / "tesseract.exe").write_text("stub\n")
+
+        monkeypatch.setattr(config.shutil, "which", lambda name: None)
+        monkeypatch.setattr(config.sys, "platform", "linux")
+        monkeypatch.setattr(config.os, "name", "posix")
+        monkeypatch.setattr(config, "CANDIDATE_WINDOWS_DIRECTORIES", [str(fake_dir)])
+
+        assert config._find_executable("tesseract.exe") is None
+
+
+class TestHomebrewHelpers:
+    def test_available_true_on_macos_when_brew_found(self, monkeypatch):
+        monkeypatch.setattr(config.sys, "platform", "darwin")
+        monkeypatch.setattr(config, "_find_executable", lambda name: "/opt/homebrew/bin/brew")
+        assert config.homebrew_available() is True
+
+    def test_available_false_on_other_platforms(self, monkeypatch):
+        monkeypatch.setattr(config.sys, "platform", "win32")
+        monkeypatch.setattr(config, "_find_executable", lambda name: "/opt/homebrew/bin/brew")
+        assert config.homebrew_available() is False
+
+    def test_missing_packages_lists_both_when_neither_is_found(self, monkeypatch):
+        monkeypatch.setattr(config, "_find_executable", lambda name: None)
+        monkeypatch.setattr(config, "_locate_poppler", lambda: None)
+        packages = config.missing_homebrew_packages()
+        assert "tesseract" in packages
+        assert "tesseract-lang" in packages
+        assert "poppler" in packages
+
+    def test_missing_packages_empty_when_both_are_found(self, monkeypatch):
+        monkeypatch.setattr(config, "_find_executable", lambda name: "/opt/homebrew/bin/" + name)
+        monkeypatch.setattr(config, "_locate_poppler", lambda: "/opt/homebrew/bin/pdftoppm")
+        assert config.missing_homebrew_packages() == []
+
+
+class TestWingetHelpers:
+    def test_available_true_on_windows_when_winget_found(self, monkeypatch):
+        monkeypatch.setattr(config.os, "name", "nt")
+        monkeypatch.setattr(config.shutil, "which", lambda name: r"C:\WinGet\winget.exe")
+        assert config.winget_available() is True
+
+    def test_available_false_on_other_platforms(self, monkeypatch):
+        monkeypatch.setattr(config.os, "name", "posix")
+        monkeypatch.setattr(config.shutil, "which", lambda name: r"C:\WinGet\winget.exe")
+        assert config.winget_available() is False
+
+    def test_missing_packages_lists_both_ids_when_neither_is_found(self, monkeypatch):
+        monkeypatch.setattr(config, "_find_executable", lambda name: None)
+        monkeypatch.setattr(config, "_locate_poppler", lambda: None)
+        packages = config.missing_winget_packages()
+        assert config.WINGET_PACKAGE_IDS["tesseract"] in packages
+        assert config.WINGET_PACKAGE_IDS["poppler"] in packages
+
+    def test_missing_packages_empty_when_both_are_found(self, monkeypatch):
+        monkeypatch.setattr(config, "_find_executable", lambda name: r"C:\Program Files\Tesseract-OCR\tesseract.exe")
+        monkeypatch.setattr(config, "_locate_poppler", lambda: r"C:\poppler\Library\bin\pdftoppm.exe")
+        assert config.missing_winget_packages() == []
+
 
 class TestCheckExternalDependencies:
     def test_no_warnings_when_everything_is_found(self, monkeypatch):
