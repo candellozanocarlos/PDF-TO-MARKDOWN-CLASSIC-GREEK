@@ -1,0 +1,6 @@
+# Los scripts de shell para macOS deben llevar siempre saltos de línea
+# estilo Unix (LF), aunque se editen o suban desde Windows. Con CRLF,
+# macOS no reconoce el shebang (#!/bin/bash) y da un error de "bad
+# interpreter" al hacer doble clic.
+*.command text eol=lf
+*.sh text eol=lf
