@@ -343,17 +343,16 @@ class DependencyDialog(ctk.CTkToplevel):
     """
     Shown when Tesseract and/or Poppler cannot be located. Aimed at
     non-technical users who downloaded the packaged app and should never
-    need to open the Terminal:
+    need to open the Terminal, even on a brand new Mac without Homebrew:
 
-      - macOS + Homebrew already installed: shows an "Instalar
-        automáticamente" button that runs 'brew install' for the missing
-        packages in the background and streams the output live.
-      - macOS without Homebrew: offers to copy the official Homebrew
-        install command to the clipboard (installing Homebrew itself
-        unattended is not done here, since it needs an interactive sudo
-        password).
+      - macOS: a single "Instalar automáticamente" button installs
+        whatever is missing. If Homebrew itself is not present, it is
+        installed first (macOS shows its own native administrator
+        password dialog for the one step that needs it), and then
+        Tesseract/Poppler are installed right after, in the same click.
       - Windows / Linux: shows the manual instructions already produced
-        by config.check_external_dependencies().
+        by config.check_external_dependencies() (there is no equivalent
+        one-click package manager story there).
     """
 
     def __init__(self, parent, warnings: list[str], on_ready: Callable[[], None]) -> None:
@@ -382,17 +381,13 @@ class DependencyDialog(ctk.CTkToplevel):
         button_row.pack(fill="x", padx=20, pady=(0, 18))
 
         self.install_button: Optional[ctk.CTkButton] = None
-        if config.homebrew_available():
-            self.install_button = ctk.CTkButton(
-                button_row, text="🍺  Instalar automáticamente",
-                command=self._start_install,
+        if sys.platform == "darwin":
+            label = (
+                "🍺  Instalar automáticamente" if config.homebrew_available()
+                else "🍺  Instalar Homebrew y continuar"
             )
+            self.install_button = ctk.CTkButton(button_row, text=label, command=self._start_install)
             self.install_button.pack(side="left")
-        elif sys.platform == "darwin":
-            ctk.CTkButton(
-                button_row, text="📋  Copiar comando para instalar Homebrew",
-                command=self._copy_brew_install_command,
-            ).pack(side="left")
 
         ctk.CTkButton(
             button_row, text="Cerrar", fg_color=SECONDARY_TEXT_COLOR,
@@ -409,32 +404,32 @@ class DependencyDialog(ctk.CTkToplevel):
         self.log_box.see("end")
         self.log_box.configure(state="disabled")
 
-    def _copy_brew_install_command(self) -> None:
-        command = (
-            '/bin/bash -c "$(curl -fsSL '
-            'https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
-        )
-        self.clipboard_clear()
-        self.clipboard_append(command)
-        self._log("Comando copiado al portapapeles.")
-        self._log("1. Abre la aplicación 'Terminal' (Cmd+Espacio, escribe 'Terminal').")
-        self._log("2. Pega el comando (Cmd+V) y pulsa Enter. Te pedirá tu contraseña.")
-        self._log("3. Cuando termine, cierra esta app y vuelve a abrirla.")
-
     def _start_install(self) -> None:
         if self._installing or self.install_button is None:
             return
         self._installing = True
         self.install_button.configure(state="disabled", text="Instalando...")
-        packages = config.missing_homebrew_packages()
-        self._log(f"Instalando con Homebrew: {', '.join(packages)}")
-        self._log("Puede tardar varios minutos la primera vez. No cierres esta ventana.\n")
-        threading.Thread(target=self._run_install, args=(packages,), daemon=True).start()
+        threading.Thread(target=self._run_install, daemon=True).start()
 
-    def _run_install(self, packages: list[str]) -> None:
-        success, message = config.install_homebrew_packages(
-            packages, on_output=self._result_queue.put
-        )
+    def _run_install(self) -> None:
+        # Stage 1: Homebrew itself, only if it is not already there. May
+        # show macOS's native administrator-password dialog once.
+        if not config.homebrew_available():
+            success, message = config.install_homebrew(on_output=self._result_queue.put)
+            if not success:
+                self._result_queue.put(f"__DONE__FAIL::{message}")
+                return
+            self._result_queue.put(f"__LOG__✅ {message}")
+
+        # Stage 2: Tesseract / Poppler via 'brew install'.
+        packages = config.missing_homebrew_packages()
+        if packages:
+            self._result_queue.put(f"__LOG__Instalando con Homebrew: {', '.join(packages)}")
+            self._result_queue.put("__LOG__Puede tardar varios minutos. No cierres esta ventana.\n")
+            success, message = config.install_homebrew_packages(packages, on_output=self._result_queue.put)
+        else:
+            success, message = True, "No faltaba nada más por instalar."
+
         status = "OK" if success else "FAIL"
         self._result_queue.put(f"__DONE__{status}::{message}")
 
@@ -442,7 +437,9 @@ class DependencyDialog(ctk.CTkToplevel):
         try:
             while True:
                 item = self._result_queue.get_nowait()
-                if item.startswith("__DONE__"):
+                if item.startswith("__LOG__"):
+                    self._log(item[len("__LOG__"):])
+                elif item.startswith("__DONE__"):
                     status_part, _, message = item.partition("::")
                     success = status_part.endswith("OK")
                     self._log(("\n✅ " if success else "\n❌ ") + message)
