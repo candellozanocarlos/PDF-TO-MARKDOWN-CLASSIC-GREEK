@@ -4,6 +4,7 @@ markdown/
 test_output*/
 *.md
 !README.md
+!CONTRIBUTING.md
 
 build/
 dist/
