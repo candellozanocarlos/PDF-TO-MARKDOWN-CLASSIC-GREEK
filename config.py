@@ -497,11 +497,13 @@ def install_winget_packages(
 
     def _run(package_id: str, use_user_scope: bool) -> tuple[bool, str]:
         args = [
-            winget, "install", "--id", package_id, "--exact", "--silent",
-            "--accept-package-agreements", "--accept-source-agreements",
+            winget, "install", "--id", package_id, "--exact",
         ]
         if use_user_scope:
-            args[3:3] = ["--scope", "user"]
+            args += ["--scope", "user"]
+        args += [
+            "--silent", "--accept-package-agreements", "--accept-source-agreements",
+        ]
         process = subprocess.Popen(
             args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
         )
