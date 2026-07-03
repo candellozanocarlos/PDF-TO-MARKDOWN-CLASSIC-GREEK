@@ -1,6 +1,6 @@
 # PDF-TO-MARKDOWN-CLASSIC-GREEK
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21130682.svg)](https://doi.org/10.5281/zenodo.21130682)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21158286.svg)](https://doi.org/10.5281/zenodo.21158286)
 
 **[Leer esto en castellano](./README.es.md)**
 
@@ -14,7 +14,7 @@ Converts a PDF containing Classical Greek text (and/or English, French, Italian,
 
 If you use this tool in your research, please cite it as:
 
-> Candel Lozano, C. (2026). *PDF-TO-MARKDOWN-CLASSIC-GREEK: OCR-based PDF-to-Markdown conversion with automatic post-processing for Classical Greek* (v1.10) [Software]. Zenodo. https://doi.org/10.5281/zenodo.21130682
+> Candel Lozano, C. (2026). *PDF-TO-MARKDOWN-CLASSIC-GREEK: OCR-based PDF-to-Markdown conversion with automatic post-processing for Classical Greek* (v1.13) [Software]. Zenodo. https://doi.org/10.5281/zenodo.21158286
 
 In BibTeX format:
 
@@ -26,9 +26,9 @@ In BibTeX format:
                    post-processing for Classical Greek}},
   year         = 2026,
   publisher    = {Zenodo},
-  version      = {v1.10},
-  doi          = {10.5281/zenodo.21130682},
-  url          = {https://doi.org/10.5281/zenodo.21130682}
+  version      = {v1.13},
+  doi          = {10.5281/zenodo.21158286},
+  url          = {https://doi.org/10.5281/zenodo.21158286}
 }
 ```
 
