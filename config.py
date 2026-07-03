@@ -36,7 +36,9 @@ public repository.
 
 from __future__ import annotations
 
+import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -278,6 +280,22 @@ def _homebrew_prefix() -> str:
     return "/opt/homebrew" if machine == "arm64" else "/usr/local"
 
 
+# On Intel Macs, Homebrew's prefix is /usr/local, a directory that (unlike
+# /opt/homebrew on Apple Silicon) already exists on a stock, untouched
+# macOS install. Since Big Sur, macOS marks that top-level directory itself
+# with SIP's "restricted" flag as part of the Signed System Volume, so
+# 'chown /usr/local' fails with "Operation not permitted" even when run as
+# root via an administrator-elevated shell. The fix, also used internally
+# by Homebrew's own installer, is to never touch /usr/local itself and
+# instead create/take ownership of only the specific subdirectories
+# Homebrew actually needs to write into.
+_HOMEBREW_INTEL_SUBDIRS = [
+    "bin", "etc", "include", "lib", "sbin", "share", "var", "opt",
+    "Cellar", "Caskroom", "Frameworks", "Homebrew",
+    "share/zsh", "share/zsh/site-functions", "etc/bash_completion.d",
+]
+
+
 def install_homebrew(on_output: Callable[[str], None]) -> tuple[bool, str]:
     """
     Installs Homebrew itself on macOS without sending the user to
@@ -289,11 +307,28 @@ def install_homebrew(on_output: Callable[[str], None]) -> tuple[bool, str]:
     prefix = _homebrew_prefix()
     user = os.environ.get("USER") or os.environ.get("LOGNAME") or ""
 
-    if not os.path.isdir(prefix) or not os.access(prefix, os.W_OK):
-        on_output(f"Se necesita permiso de administrador para crear {prefix}.")
+    if prefix == "/opt/homebrew":
+        # Does not exist on a stock Mac, so it is safe (and necessary) to
+        # create and chown it directly.
+        targets = [prefix]
+    else:
+        targets = [os.path.join(prefix, sub) for sub in _HOMEBREW_INTEL_SUBDIRS]
+
+    needs_prep = any(
+        not os.path.isdir(target) or not os.access(target, os.W_OK) for target in targets
+    )
+
+    if needs_prep:
+        on_output("Se necesita permiso de administrador para preparar Homebrew.")
         on_output("macOS te pedirá tu contraseña en un momento (diálogo del sistema).")
-        prep_script = f"mkdir -p '{prefix}' && chown -R '{user}':admin '{prefix}'"
-        applescript = f'do shell script "{prep_script}" with administrator privileges'
+        quoted_targets = " ".join(shlex.quote(t) for t in targets)
+        prep_script = (
+            f"mkdir -p {quoted_targets} && chown -R {shlex.quote(user + ':admin')} {quoted_targets}"
+        )
+        # json.dumps produces a double-quoted string with \" and \\
+        # escaped exactly the way AppleScript's string literal syntax
+        # also expects, which is what "do shell script "..."" needs here.
+        applescript = f"do shell script {json.dumps(prep_script)} with administrator privileges"
         try:
             result = subprocess.run(["osascript", "-e", applescript], capture_output=True, text=True)
         except Exception as exc:  # noqa: BLE001
@@ -301,8 +336,8 @@ def install_homebrew(on_output: Callable[[str], None]) -> tuple[bool, str]:
         if result.returncode != 0:
             if "User canceled" in (result.stderr or ""):
                 return False, "Instalación cancelada (se rechazó la solicitud de contraseña)."
-            return False, f"No se pudo preparar {prefix}: {result.stderr.strip()}"
-        on_output(f"Permisos concedidos. {prefix} está listo.")
+            return False, f"No se pudo preparar Homebrew: {result.stderr.strip()}"
+        on_output("Permisos concedidos.")
 
     on_output("Descargando e instalando Homebrew (puede tardar varios minutos)...")
     env = dict(os.environ)
@@ -377,11 +412,16 @@ def install_homebrew_packages(
 # Windows 11 and on Windows 10 systems kept up to date through the Microsoft
 # Store, so it can be assumed present on the large majority of machines
 # without asking the person to install anything extra first. Unlike
-# Homebrew on macOS, winget installers can run fully silently without any
-# extra administrator prompt handling on our side: '--silent' together
-# with '--scope user' avoids the UAC elevation dialog entirely for both
-# Tesseract and Poppler, since neither needs to write outside the user's
-# own profile.
+# Homebrew on macOS, winget installers can usually run fully silently
+# without any extra administrator prompt handling on our side: '--silent'
+# together with '--scope user' avoids the UAC elevation dialog for
+# packages that offer a per-user installer, which covers Poppler and the
+# VC++ Redistributable. Tesseract's own installer (UB-Mannheim's NSIS
+# package) is only published machine-wide, so for that one specifically
+# install_winget_packages() below falls back to installing without a
+# forced scope, which does show the standard UAC prompt just for that
+# package; there is no way around that without a different Tesseract
+# distribution.
 
 WINGET_PACKAGE_IDS = {
     "vcredist": "Microsoft.VCRedist.2015+.x64",
@@ -435,9 +475,17 @@ def install_winget_packages(
 ) -> tuple[bool, str]:
     """
     Runs 'winget install' for each package ID, streaming output live.
-    Uses --scope user so it does not need the UAC administrator prompt
-    (both Tesseract and Poppler work fine installed per-user). Returns
-    (success, message).
+    Tries --scope user first, so it does not need the UAC administrator
+    prompt when possible (this works fine for Poppler and the VC++
+    Redistributable). Some packages, though, are only published with a
+    machine-wide installer (Tesseract's UB-Mannheim NSIS installer is one
+    of them): winget then fails with error 0x8A150010 ("no applicable
+    installer found"), since it filtered out the only installer available
+    for not matching the requested "user" scope. When that specific error
+    is detected, the same package is retried without forcing a scope,
+    letting winget fall back to its default (machine-wide) installer,
+    which will show the standard UAC prompt for that one package only.
+    Returns (success, message).
     """
     winget = shutil.which("winget")
     if not winget:
@@ -445,28 +493,38 @@ def install_winget_packages(
     if not packages:
         return True, "No hay nada que instalar."
 
+    NO_APPLICABLE_INSTALLER_CODES = {"2316632080", "-1978335216", "0x8a150010"}
+
+    def _run(package_id: str, use_user_scope: bool) -> tuple[bool, str]:
+        args = [
+            winget, "install", "--id", package_id, "--exact", "--silent",
+            "--accept-package-agreements", "--accept-source-agreements",
+        ]
+        if use_user_scope:
+            args[3:3] = ["--scope", "user"]
+        process = subprocess.Popen(
+            args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+        )
+        assert process.stdout is not None
+        for line in process.stdout:
+            on_output(line.rstrip())
+        process.wait()
+        return process.returncode == 0, str(process.returncode)
+
     all_ok = True
     for package_id in packages:
         on_output(f"Instalando {package_id}...")
         try:
-            process = subprocess.Popen(
-                [
-                    winget, "install", "--id", package_id, "--exact",
-                    "--scope", "user", "--silent",
-                    "--accept-package-agreements", "--accept-source-agreements",
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-            )
-            assert process.stdout is not None
-            for line in process.stdout:
-                on_output(line.rstrip())
-            process.wait()
-            if process.returncode != 0:
+            success, returncode = _run(package_id, use_user_scope=True)
+            if not success and returncode in NO_APPLICABLE_INSTALLER_CODES:
+                on_output(
+                    f"⚠ {package_id} no tiene instalador para 'solo mi usuario'; "
+                    "reintentando para todo el equipo (puede pedir permiso de administrador)..."
+                )
+                success, returncode = _run(package_id, use_user_scope=False)
+            if not success:
                 all_ok = False
-                on_output(f"⚠ {package_id} terminó con código {process.returncode}.")
+                on_output(f"⚠ {package_id} terminó con código {returncode}.")
         except Exception as exc:  # noqa: BLE001
             all_ok = False
             on_output(f"⚠ Error instalando {package_id}: {exc}")
