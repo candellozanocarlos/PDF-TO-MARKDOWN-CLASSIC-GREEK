@@ -495,6 +495,21 @@ def install_winget_packages(
 
     NO_APPLICABLE_INSTALLER_CODES = {"2316632080", "-1978335216", "0x8a150010"}
 
+    # winget's "install" command silently behaves like "upgrade" when it
+    # detects the package is already present, and if there is no newer
+    # version, it exits with a failure code (observed: 2316632107 /
+    # 0x8A15002B, "no applicable update found") even though the program
+    # is, in fact, already there and perfectly usable. Rather than trying
+    # to enumerate every such winget exit code, after a reported failure
+    # we just check directly whether the thing we actually care about
+    # (the executable itself) is now findable; if so, the "failure" is
+    # treated as a success regardless of what winget's exit code says.
+    already_present_checks: dict[str, Callable[[], bool]] = {
+        WINGET_PACKAGE_IDS["vcredist"]: _vcredist_installed,
+        WINGET_PACKAGE_IDS["tesseract"]: lambda: _find_executable("tesseract.exe") is not None,
+        WINGET_PACKAGE_IDS["poppler"]: lambda: _locate_poppler() is not None,
+    }
+
     def _run(package_id: str, use_user_scope: bool) -> tuple[bool, str]:
         args = [
             winget, "install", "--id", package_id, "--exact",
@@ -524,6 +539,11 @@ def install_winget_packages(
                     "reintentando para todo el equipo (puede pedir permiso de administrador)..."
                 )
                 success, returncode = _run(package_id, use_user_scope=False)
+            if not success:
+                check = already_present_checks.get(package_id)
+                if check is not None and check():
+                    on_output(f"✅ {package_id} ya estaba instalado y disponible, se continúa.")
+                    success = True
             if not success:
                 all_ok = False
                 on_output(f"⚠ {package_id} terminó con código {returncode}.")
