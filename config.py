@@ -47,6 +47,8 @@ from typing import Callable, Optional
 
 import pytesseract
 
+import i18n
+
 # ---------------------------------------------------------------------------
 # Configurable paths
 # ---------------------------------------------------------------------------
@@ -205,29 +207,23 @@ def check_external_dependencies() -> list[str]:
 
     if not shutil.which(TESSERACT_CMD) and not os.path.isfile(TESSERACT_CMD):
         if sys.platform == "darwin":
-            instructions = "Instálalo con Homebrew: brew install tesseract tesseract-lang"
+            instructions = i18n._("instr_tesseract_mac")
         elif os.name == "nt":
-            instructions = (
-                "Instálalo desde https://github.com/UB-Mannheim/tesseract/wiki "
-                "y define la variable de entorno TESSERACT_CMD con la ruta al .exe"
-            )
+            instructions = i18n._("instr_tesseract_win")
         else:
-            instructions = "Instálalo con el gestor de paquetes de tu sistema (p. ej. apt install tesseract-ocr)"
+            instructions = i18n._("instr_tesseract_linux")
         warnings.append(
-            f"No se encuentra Tesseract OCR (ruta probada: '{TESSERACT_CMD}'). {instructions}"
+            i18n._("dep_tesseract_not_found", path=TESSERACT_CMD, instructions=instructions)
         )
 
     if _locate_poppler() is None:
         if sys.platform == "darwin":
-            instructions = "Instálalo con Homebrew: brew install poppler"
+            instructions = i18n._("instr_poppler_mac")
         elif os.name == "nt":
-            instructions = (
-                "Descárgalo de https://github.com/oschwartz10612/poppler-windows/releases "
-                "y define la variable de entorno POPPLER_PATH con la carpeta 'bin' descomprimida"
-            )
+            instructions = i18n._("instr_poppler_win")
         else:
-            instructions = "Instálalo con el gestor de paquetes de tu sistema (p. ej. apt install poppler-utils)"
-        warnings.append(f"No se encuentra Poppler (necesario para leer el PDF). {instructions}")
+            instructions = i18n._("instr_poppler_linux")
+        warnings.append(i18n._("dep_poppler_not_found", instructions=instructions))
 
     return warnings
 
@@ -302,7 +298,7 @@ def install_homebrew(on_output: Callable[[str], None]) -> tuple[bool, str]:
     Terminal. Returns (success, message).
     """
     if sys.platform != "darwin":
-        return False, "La instalación automática de Homebrew solo está disponible en macOS."
+        return False, i18n._("homebrew_macos_only")
 
     prefix = _homebrew_prefix()
     user = os.environ.get("USER") or os.environ.get("LOGNAME") or ""
@@ -319,8 +315,8 @@ def install_homebrew(on_output: Callable[[str], None]) -> tuple[bool, str]:
     )
 
     if needs_prep:
-        on_output("Se necesita permiso de administrador para preparar Homebrew.")
-        on_output("macOS te pedirá tu contraseña en un momento (diálogo del sistema).")
+        on_output(i18n._("homebrew_need_admin"))
+        on_output(i18n._("homebrew_password_prompt"))
         quoted_targets = " ".join(shlex.quote(t) for t in targets)
         prep_script = (
             f"mkdir -p {quoted_targets} && chown -R {shlex.quote(user + ':admin')} {quoted_targets}"
@@ -332,14 +328,14 @@ def install_homebrew(on_output: Callable[[str], None]) -> tuple[bool, str]:
         try:
             result = subprocess.run(["osascript", "-e", applescript], capture_output=True, text=True)
         except Exception as exc:  # noqa: BLE001
-            return False, f"No se pudo pedir permisos de administrador: {exc}"
+            return False, i18n._("homebrew_admin_request_failed", exc=exc)
         if result.returncode != 0:
             if "User canceled" in (result.stderr or ""):
-                return False, "Instalación cancelada (se rechazó la solicitud de contraseña)."
-            return False, f"No se pudo preparar Homebrew: {result.stderr.strip()}"
-        on_output("Permisos concedidos.")
+                return False, i18n._("homebrew_install_cancelled")
+            return False, i18n._("homebrew_prep_failed", stderr=result.stderr.strip())
+        on_output(i18n._("homebrew_permissions_granted"))
 
-    on_output("Descargando e instalando Homebrew (puede tardar varios minutos)...")
+    on_output(i18n._("homebrew_downloading"))
     env = dict(os.environ)
     env["NONINTERACTIVE"] = "1"  # Homebrew's installer must NOT run as root; this
                                   # just skips its own interactive confirmation prompts.
@@ -358,18 +354,15 @@ def install_homebrew(on_output: Callable[[str], None]) -> tuple[bool, str]:
             on_output(line.rstrip())
         process.wait()
     except Exception as exc:  # noqa: BLE001
-        return False, f"Error al instalar Homebrew: {exc}"
+        return False, i18n._("homebrew_install_error", exc=exc)
 
     if process.returncode != 0:
-        return False, f"El instalador de Homebrew terminó con un error (código {process.returncode})."
+        return False, i18n._("homebrew_install_failed_code", code=process.returncode)
 
     if _find_executable("brew") is None:
-        return False, (
-            "Homebrew parece haberse instalado, pero no se encuentra su ejecutable. "
-            "Cierra y vuelve a abrir esta aplicación."
-        )
+        return False, i18n._("homebrew_not_found_after_install")
 
-    return True, "Homebrew instalado correctamente."
+    return True, i18n._("homebrew_installed_ok")
 
 
 def install_homebrew_packages(
@@ -382,9 +375,9 @@ def install_homebrew_packages(
     """
     brew = _find_executable("brew")
     if not brew:
-        return False, "No se ha encontrado Homebrew en este equipo."
+        return False, i18n._("homebrew_not_found")
     if not packages:
-        return True, "No hay nada que instalar."
+        return True, i18n._("nothing_to_install")
     try:
         process = subprocess.Popen(
             [brew, "install", *packages],
@@ -399,10 +392,10 @@ def install_homebrew_packages(
         process.wait()
         if process.returncode == 0:
             refresh_paths()
-            return True, "Instalación completada correctamente."
-        return False, f"'brew install' terminó con un error (código {process.returncode})."
+            return True, i18n._("install_ok")
+        return False, i18n._("homebrew_install_failed", code=process.returncode)
     except Exception as exc:  # noqa: BLE001
-        return False, f"Error al ejecutar Homebrew: {exc}"
+        return False, i18n._("homebrew_packages_install_error", exc=exc)
 
 
 # ---------------------------------------------------------------------------
@@ -489,9 +482,9 @@ def install_winget_packages(
     """
     winget = shutil.which("winget")
     if not winget:
-        return False, "No se ha encontrado winget en este equipo."
+        return False, i18n._("winget_not_found")
     if not packages:
-        return True, "No hay nada que instalar."
+        return True, i18n._("nothing_to_install")
 
     NO_APPLICABLE_INSTALLER_CODES = {"2316632080", "-1978335216", "0x8a150010"}
 
@@ -534,24 +527,21 @@ def install_winget_packages(
         try:
             success, returncode = _run(package_id, use_user_scope=True)
             if not success and returncode in NO_APPLICABLE_INSTALLER_CODES:
-                on_output(
-                    f"⚠ {package_id} no tiene instalador para 'solo mi usuario'; "
-                    "reintentando para todo el equipo (puede pedir permiso de administrador)..."
-                )
+                on_outputi18n._("winget_no_user_scope_retry", package=package_id)
                 success, returncode = _run(package_id, use_user_scope=False)
             if not success:
                 check = already_present_checks.get(package_id)
                 if check is not None and check():
-                    on_output(f"✅ {package_id} ya estaba instalado y disponible, se continúa.")
+                    on_output(i18n._("winget_already_present", package=package_id))
                     success = True
             if not success:
                 all_ok = False
-                on_output(f"⚠ {package_id} terminó con código {returncode}.")
+                on_output(i18n._("winget_package_failed_code", package=package_id, code=returncode))
         except Exception as exc:  # noqa: BLE001
             all_ok = False
-            on_output(f"⚠ Error instalando {package_id}: {exc}")
+            on_output(i18n._("winget_install_error", package=package_id, exc=exc))
 
     refresh_paths()
     if all_ok:
-        return True, "Instalación completada correctamente."
-    return False, "Alguno de los programas no se pudo instalar (revisa el registro de arriba)."
+        return True, i18n._("install_ok")
+    return False, i18n._("winget_some_failed")

@@ -63,27 +63,43 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      # --- Windows: builds a single .exe per application ---
-      - name: Build "PDF a Markdown" (Windows)
+      # --- Windows: builds a single .exe per application/language ---
+      - name: Build "PDF a Markdown" (Windows, Spanish)
         if: matrix.label == 'windows'
         run: pyinstaller --onefile --windowed --name "PDF a Markdown" --add-data "tema_calido.json;." PDF_a_Markdown_GUI.py
 
-      - name: Build "PDF a Markdown (con tablas)" (Windows)
+      - name: Build "PDF a Markdown (con tablas)" (Windows, Spanish)
         if: matrix.label == 'windows'
         run: pyinstaller --onefile --windowed --name "PDF a Markdown (con tablas)" --add-data "tema_calido.json;." PDF_a_Markdown_con_Tablas_GUI.py
 
-      # --- macOS: builds an .app bundle per application, zipped.
+      - name: Build "PDF to Markdown" (Windows, English)
+        if: matrix.label == 'windows'
+        run: pyinstaller --onefile --windowed --name "PDF to Markdown" --add-data "tema_calido.json;." PDF_to_Markdown_GUI.py
+
+      - name: Build "PDF to Markdown (with tables)" (Windows, English)
+        if: matrix.label == 'windows'
+        run: pyinstaller --onefile --windowed --name "PDF to Markdown (with tables)" --add-data "tema_calido.json;." PDF_to_Markdown_with_Tables_GUI.py
+
+      # --- macOS: builds an .app bundle per application/language, zipped.
       # Runs on both the Apple Silicon and the Intel jobs; the resulting
       # .app only works on the architecture it was built on, hence the
       # architecture-specific zip name below (so both can be attached to
       # the same Release without overwriting each other). ---
-      - name: Build "PDF a Markdown" (macOS)
+      - name: Build "PDF a Markdown" (macOS, Spanish)
         if: matrix.label == 'macos-applesilicon' || matrix.label == 'macos-intel'
         run: pyinstaller --windowed --name "PDF a Markdown" --add-data "tema_calido.json:." PDF_a_Markdown_GUI.py
 
-      - name: Build "PDF a Markdown (con tablas)" (macOS)
+      - name: Build "PDF a Markdown (con tablas)" (macOS, Spanish)
         if: matrix.label == 'macos-applesilicon' || matrix.label == 'macos-intel'
         run: pyinstaller --windowed --name "PDF a Markdown (con tablas)" --add-data "tema_calido.json:." PDF_a_Markdown_con_Tablas_GUI.py
+
+      - name: Build "PDF to Markdown" (macOS, English)
+        if: matrix.label == 'macos-applesilicon' || matrix.label == 'macos-intel'
+        run: pyinstaller --windowed --name "PDF to Markdown" --add-data "tema_calido.json:." PDF_to_Markdown_GUI.py
+
+      - name: Build "PDF to Markdown (with tables)" (macOS, English)
+        if: matrix.label == 'macos-applesilicon' || matrix.label == 'macos-intel'
+        run: pyinstaller --windowed --name "PDF to Markdown (with tables)" --add-data "tema_calido.json:." PDF_to_Markdown_with_Tables_GUI.py
 
       - name: Zip the macOS apps (Apple Silicon)
         if: matrix.label == 'macos-applesilicon'
@@ -91,7 +107,9 @@ jobs:
           cd dist
           zip -r "PDF a Markdown (macOS Apple Silicon).zip" "PDF a Markdown.app"
           zip -r "PDF a Markdown (con tablas) (macOS Apple Silicon).zip" "PDF a Markdown (con tablas).app"
-          rm -rf "PDF a Markdown.app" "PDF a Markdown (con tablas).app"
+          zip -r "PDF to Markdown (macOS Apple Silicon).zip" "PDF to Markdown.app"
+          zip -r "PDF to Markdown (with tables) (macOS Apple Silicon).zip" "PDF to Markdown (with tables).app"
+          rm -rf "PDF a Markdown.app" "PDF a Markdown (con tablas).app" "PDF to Markdown.app" "PDF to Markdown (with tables).app"
 
       - name: Zip the macOS apps (Intel)
         if: matrix.label == 'macos-intel'
@@ -99,7 +117,9 @@ jobs:
           cd dist
           zip -r "PDF a Markdown (macOS Intel).zip" "PDF a Markdown.app"
           zip -r "PDF a Markdown (con tablas) (macOS Intel).zip" "PDF a Markdown (con tablas).app"
-          rm -rf "PDF a Markdown.app" "PDF a Markdown (con tablas).app"
+          zip -r "PDF to Markdown (macOS Intel).zip" "PDF to Markdown.app"
+          zip -r "PDF to Markdown (with tables) (macOS Intel).zip" "PDF to Markdown (with tables).app"
+          rm -rf "PDF a Markdown.app" "PDF a Markdown (con tablas).app" "PDF to Markdown.app" "PDF to Markdown (with tables).app"
 
       - name: Save the built files
         uses: actions/upload-artifact@v4

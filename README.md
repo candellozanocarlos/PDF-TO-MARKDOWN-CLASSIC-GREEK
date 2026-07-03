@@ -2,6 +2,8 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21130682.svg)](https://doi.org/10.5281/zenodo.21130682)
 
+**[Leer esto en castellano](./README.es.md)**
+
 Converts a PDF containing Classical Greek text (and/or English, French, Italian, etc.) into a Markdown (`.md`) file using optical character recognition (OCR), then corrects the errors typical of Greek OCR.
 
 > **No computing background?** Skip everything below (cloning the repository, terminal, Python...) and go directly to the **["For non-technical users (no Git, no terminal)"](#for-non-technical-users-no-git-no-terminal)** section, which explains how to download and use the application with a double-click, no code involved.
@@ -53,9 +55,12 @@ PDF (original) → .md (this script) → paste/upload to Claude → summarize, t
 | File | Purpose |
 | --- | --- |
 | `pdf_to_markdown.py` | Main script (CLI). Converts the whole PDF, a page range, and optionally extracts tables. |
-| `PDF_a_Markdown_GUI.py` | Desktop application (no terminal), text only. |
-| `PDF_a_Markdown_con_Tablas_GUI.py` | Desktop application (no terminal), text + strict table extraction. |
-| `gui_common.py` | Conversion engine and components shared by the two desktop applications. |
+| `PDF_a_Markdown_GUI.py` | Desktop application (no terminal), Spanish, text only. |
+| `PDF_a_Markdown_con_Tablas_GUI.py` | Desktop application (no terminal), Spanish, text + strict table extraction. |
+| `PDF_to_Markdown_GUI.py` | The same text-only application, in English. |
+| `PDF_to_Markdown_with_Tables_GUI.py` | The same table-extraction application, in English. |
+| `i18n.py` | Translation layer: centralizes every string shown by the apps, in Spanish and English. |
+| `gui_common.py` | Conversion engine and components shared by all four desktop applications. |
 | `tema_calido.json` | Visual theme (amber/brown tones) for the desktop applications. |
 | `ocr_postprocess.py` | Corrects errors typical of OCR on Classical Greek and the surrounding multilingual academic text. |
 | `pdf_table_extractor.py` | Extracts tables from digital PDFs (with `pdfplumber`) or scanned PDFs (with OpenCV + Tesseract), with strict detection. |
@@ -198,14 +203,15 @@ If you are going to share this tool with someone who does not know what Git or a
 ### What the person using it has to do (no code)
 
 1. Go to the repository's **Releases** page (link pinned in GitHub's right-hand sidebar, or at `.../releases`).
-2. Download the file matching your system and what you need:
-   - **Windows:** `.exe` (works on any Windows 10/11 PC, no need to pick anything else).
+2. Download the file matching your system, your preferred language, and what you need:
+   - **Language:** each app exists as two independent builds, "PDF a Markdown" (Spanish) and "PDF to Markdown" (English). Behavior is identical, only the window's language changes.
+   - **Windows:** `.exe` (works on any Windows 10/11 PC, no need to pick anything else besides the language).
    - **macOS:** `.zip` containing an `.app`, but here you must pick the right one for your Mac's chip, **the two are not interchangeable**:
      - **Apple Silicon** (M1, M2, M3, M4...): the file labeled **"macOS Apple Silicon"**.
      - **Intel** (any Mac from before the chip transition in late 2020): the file labeled **"macOS Intel"**.
      - Not sure which one you have? Apple menu (top-left corner) → "About This Mac": if it says "Chip" followed by "Apple M...", you have Apple Silicon; if it says "Processor" followed by "Intel Core...", you have Intel.
      - Opening the wrong one gives a **"is not compatible with this Mac"** error when double-clicking (not a permissions issue, not a broken download, just the wrong architecture).
-   - Each of the two macOS builds also comes in a "text only" version ("PDF a Markdown") and a "with tables" version ("PDF a Markdown (con tablas)"), same as on Windows.
+   - Each language/system combination also comes in a "text only" version ("PDF a Markdown" / "PDF to Markdown") and a "with tables" version ("PDF a Markdown (con tablas)" / "PDF to Markdown (with tables)").
 3. Open it:
    - **Windows:** double-click. A SmartScreen warning ("Windows protected your PC") will probably appear because the `.exe` is not digitally signed; click **"More info"** → **"Run anyway"**. This is normal for software from a single developer without a paid certificate, it does not mean the program is unsafe.
    - **macOS:** unzip the `.zip`, and for the first use, right-click the `.app` → "Open" (instead of a normal double-click), to skip the "unverified developer" warning. After that, a normal double-click works fine.
@@ -213,7 +219,7 @@ If you are going to share this tool with someone who does not know what Git or a
 
 ### Tesseract and Poppler install themselves, no terminal needed
 
-These are external programs the app depends on (not Python libraries, so they cannot be bundled inside the `.exe`/`.app` itself). This applies identically to both packaged apps, "PDF a Markdown" and "PDF a Markdown (con tablas)": they share the same dependency-checking code, so whichever one you use behaves the same way here. The first time either program is missing, a window opens inside the application offering a single button, instead of failing with a cryptic error:
+These are external programs the app depends on (not Python libraries, so they cannot be bundled inside the `.exe`/`.app` itself). This applies identically to all four packaged apps, Spanish and English, text-only and with-tables: they share the same dependency-checking code, so whichever one you use behaves the same way here. The first time either program is missing, a window opens inside the application offering a single button, instead of failing with a cryptic error:
 
 - **macOS:** **"🍺 Instalar automáticamente"** (or **"🍺 Instalar Homebrew y continuar"** on a brand-new Mac that does not have [Homebrew](https://brew.sh) yet). One click installs Homebrew first if needed, then Tesseract and Poppler through it, showing the progress live in the same window. If Homebrew itself has to be installed, macOS shows its own native administrator-password dialog once, the standard system prompt used by any regular installer, not a disguised terminal command; everything after that runs without further prompts.
 - **Windows:** **"🪟 Instalar automáticamente"**, using [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) (Windows' built-in package manager, present by default on Windows 10/11 kept up to date). It tries a per-user install first (`--scope user`), which avoids the UAC administrator prompt for Poppler and the Visual C++ Redistributable. Tesseract's own installer, however, is only published machine-wide, so for that one specifically it falls back to a normal install, which **does** show the standard Windows UAC prompt just for that package (accepting it is enough, no typing involved). Besides Tesseract and Poppler, it also installs the **Visual C++ Redistributable** if missing: both Tesseract and Poppler need it just to start, and on a truly clean Windows (freshly installed, or a disposable sandbox/VM) it is often not there yet, producing an unrelated-looking **"VCRUNTIME140.dll was not found"** system dialog instead of Tesseract/Poppler's own error message. Most regular, already-used Windows machines already have it installed as a side effect of other software, so in practice this step is usually a no-op.

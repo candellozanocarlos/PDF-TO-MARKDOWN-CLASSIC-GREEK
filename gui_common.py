@@ -32,17 +32,22 @@ import pytesseract
 from pdf2image import convert_from_path
 
 import config
+import i18n
 from ocr_postprocess import fix_text
 
-TESSERACT_LANGUAGES: list[tuple[str, str]] = [
-    ("grc", "Griego clásico"),
-    ("eng", "Inglés"),
-    ("fra", "Francés"),
-    ("deu", "Alemán"),
-    ("ita", "Italiano"),
-    ("spa", "Español"),
-    ("lat", "Latín"),
-]
+def _tesseract_languages() -> list[tuple[str, str]]:
+    return [
+        ("grc", i18n._("lang_grc")),
+        ("eng", i18n._("lang_eng")),
+        ("fra", i18n._("lang_fra")),
+        ("deu", i18n._("lang_deu")),
+        ("ita", i18n._("lang_ita")),
+        ("spa", i18n._("lang_spa")),
+        ("lat", i18n._("lang_lat")),
+    ]
+
+
+TESSERACT_LANGUAGES: list[tuple[str, str]] = _tesseract_languages()
 
 DEFAULT_LANGUAGES = ("grc", "eng")
 
@@ -154,17 +159,12 @@ class ConversionEngine:
         dpi: int,
     ) -> None:
         try:
-            self.queue.put(("log", "Comprobando dependencias externas (Tesseract, Poppler)..."))
+            self.queue.put(("log", i18n._("log_checking_deps")))
             warnings = config.check_external_dependencies()
             if warnings:
                 for warning in warnings:
                     self.queue.put(("log", f"⚠ {warning}"))
-                self.queue.put((
-                    "error",
-                    "Faltan programas externos necesarios (ver avisos arriba). "
-                    "Instálalos y vuelve a intentarlo; esta aplicación no puede "
-                    "convertir el PDF sin ellos.",
-                ))
+                self.queue.put(("error", i18n._("log_missing_deps_error")))
                 return
 
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -179,7 +179,7 @@ class ConversionEngine:
                 first_page = 1
                 suffix = ""
 
-            self.queue.put(("log", "Convirtiendo PDF a imágenes..."))
+            self.queue.put(("log", i18n._("log_converting_to_images")))
             pages = convert_from_path(str(pdf_path), **convert_kwargs)
             self._check_cancelled()
 
@@ -191,36 +191,30 @@ class ConversionEngine:
                     insert_tables_into_text,
                 )
 
-                self.queue.put(("log", "Analizando tipo de PDF (digital / escaneado)..."))
+                self.queue.put(("log", i18n._("log_analyzing_pdf_type")))
                 pdf_type = detect_pdf_type(str(pdf_path))
-                self.queue.put(("log", f"Tipo detectado: {pdf_type}."))
-                self.queue.put(("log", "Buscando tablas (modo estricto)..."))
+                self.queue.put(("log", i18n._("log_pdf_type_detected", pdf_type=pdf_type)))
+                self.queue.put(("log", i18n._("log_searching_tables")))
                 tables_by_page = extract_tables(
                     str(pdf_path), pdf_type=pdf_type, images=pages, lang=lang,
                     apply_postprocessing=True,
                 )
                 total_tables = sum(len(v) for v in tables_by_page.values())
                 if total_tables == 0:
-                    self.queue.put((
-                        "log",
-                        "No se ha detectado ninguna tabla que cumpla los criterios "
-                        "estrictos (pie de tabla + rejilla de al menos 3x2 celdas "
-                        "con contenido). Si esperabas encontrar alguna, revisa que "
-                        "tenga un pie del tipo 'Table 1', 'Tabla 1', etc.",
-                    ))
+                    self.queue.put(("log", i18n._("log_no_tables_found")))
                 else:
                     for page_num, tables in sorted(tables_by_page.items()):
                         self.queue.put(("table_found", page_num, len(tables)))
 
                 insert_tables = insert_tables_into_text
 
-            self.queue.put(("log", f"Procesando {len(pages)} página(s) con OCR..."))
+            self.queue.put(("log", i18n._("log_processing_ocr", n=len(pages))))
             full_text = ""
             for i, page in enumerate(pages):
                 self._check_cancelled()
                 page_number = first_page + i
                 self.queue.put(("progress", i + 1, len(pages)))
-                self.queue.put(("log", f"  Página {page_number}..."))
+                self.queue.put(("log", i18n._("log_page_processing", n=page_number)))
 
                 raw_text = pytesseract.image_to_string(page, lang=lang, config="--psm 3")
                 corrected_text = fix_text(raw_text, verbose=False)
@@ -230,16 +224,16 @@ class ConversionEngine:
                         corrected_text, tables_by_page[page_number]
                     )
 
-                full_text += f"\n\n--- Página {page_number} ---\n\n{corrected_text}"
+                full_text += f"\n\n{i18n._('output_page_separator', n=page_number)}\n\n{corrected_text}"
 
-            tables_suffix = "_tablas" if with_tables else ""
+            tables_suffix = i18n._("output_suffix_tables") if with_tables else ""
             output_path = output_dir / f"{pdf_path.stem}{suffix}{tables_suffix}.md"
             output_path.write_text(full_text, encoding="utf-8")
 
             self.queue.put(("done", str(output_path)))
 
         except ConversionInProgress:
-            self.queue.put(("log", "Conversión cancelada por el usuario."))
+            self.queue.put(("log", i18n._("log_conversion_cancelled")))
         except Exception as exc:  # noqa: BLE001
             self.queue.put(("error", f"{exc}\n\n{traceback.format_exc(limit=3)}"))
 
@@ -276,7 +270,7 @@ def create_file_selector(
             if on_change:
                 on_change(path)
 
-    ctk.CTkButton(row, text="Examinar...", width=110, command=_browse).pack(side="left")
+    ctk.CTkButton(row, text=i18n._("browse_button"), width=110, command=_browse).pack(side="left")
 
     return frame
 
@@ -302,7 +296,7 @@ def create_folder_selector(
         if path:
             variable.set(path)
 
-    ctk.CTkButton(row, text="Examinar...", width=110, command=_browse).pack(side="left")
+    ctk.CTkButton(row, text=i18n._("browse_button"), width=110, command=_browse).pack(side="left")
 
     return frame
 
@@ -320,7 +314,7 @@ def create_language_selector(
     """
     frame = ctk.CTkFrame(parent, fg_color="transparent")
     ctk.CTkLabel(
-        frame, text="Idiomas del documento (marca todos los que aparezcan)",
+        frame, text=i18n._("languages_label"),
         anchor="w", font=ctk.CTkFont(weight="bold"),
     ).pack(fill="x", pady=(0, 6))
 
@@ -361,7 +355,7 @@ class DependencyDialog(ctk.CTkToplevel):
 
     def __init__(self, parent, warnings: list[str], on_ready: Callable[[], None]) -> None:
         super().__init__(parent)
-        self.title("Faltan programas necesarios")
+        self.title(i18n._("dep_dialog_title"))
         self.geometry("560x440")
         self.minsize(520, 400)
         self.on_ready = on_ready
@@ -369,7 +363,7 @@ class DependencyDialog(ctk.CTkToplevel):
         self._installing = False
 
         ctk.CTkLabel(
-            self, text="⚠️  Faltan programas externos",
+            self, text=i18n._("dep_dialog_header"),
             font=ctk.CTkFont(size=17, weight="bold"),
         ).pack(anchor="w", padx=20, pady=(18, 6))
 
@@ -387,19 +381,19 @@ class DependencyDialog(ctk.CTkToplevel):
         self.install_button: Optional[ctk.CTkButton] = None
         if sys.platform == "darwin":
             label = (
-                "🍺  Instalar automáticamente" if config.homebrew_available()
-                else "🍺  Instalar Homebrew y continuar"
+                i18n._("dep_install_button_mac_auto") if config.homebrew_available()
+                else i18n._("dep_install_button_mac_homebrew")
             )
             self.install_button = ctk.CTkButton(button_row, text=label, command=self._start_install)
             self.install_button.pack(side="left")
         elif os.name == "nt" and config.winget_available():
             self.install_button = ctk.CTkButton(
-                button_row, text="🪟  Instalar automáticamente", command=self._start_install,
+                button_row, text=i18n._("dep_install_button_win_auto"), command=self._start_install,
             )
             self.install_button.pack(side="left")
 
         ctk.CTkButton(
-            button_row, text="Cerrar", fg_color=SECONDARY_TEXT_COLOR,
+            button_row, text=i18n._("dep_close_button"), fg_color=SECONDARY_TEXT_COLOR,
             hover_color="#6E5540", command=self.destroy,
         ).pack(side="right")
 
@@ -417,7 +411,7 @@ class DependencyDialog(ctk.CTkToplevel):
         if self._installing or self.install_button is None:
             return
         self._installing = True
-        self.install_button.configure(state="disabled", text="Instalando...")
+        self.install_button.configure(state="disabled", text=i18n._("dep_installing_button"))
         threading.Thread(target=self._run_install, daemon=True).start()
 
     def _run_install(self) -> None:
@@ -439,11 +433,11 @@ class DependencyDialog(ctk.CTkToplevel):
         # Stage 2: Tesseract / Poppler via 'brew install'.
         packages = config.missing_homebrew_packages()
         if packages:
-            self._result_queue.put(f"__LOG__Instalando con Homebrew: {', '.join(packages)}")
-            self._result_queue.put("__LOG__Puede tardar varios minutos. No cierres esta ventana.\n")
+            self._result_queue.put(f"__LOG__{i18n._('installing_with_homebrew', packages=', '.join(packages))}")
+            self._result_queue.put(f"__LOG__{i18n._('may_take_minutes')}")
             success, message = config.install_homebrew_packages(packages, on_output=self._result_queue.put)
         else:
-            success, message = True, "No faltaba nada más por instalar."
+            success, message = True, i18n._("nothing_else_to_install")
 
         status = "OK" if success else "FAIL"
         self._result_queue.put(f"__DONE__{status}::{message}")
@@ -451,10 +445,10 @@ class DependencyDialog(ctk.CTkToplevel):
     def _run_install_windows(self) -> None:
         packages = config.missing_winget_packages()
         if not packages:
-            self._result_queue.put("__DONE__OK::No faltaba nada más por instalar.")
+            self._result_queue.put(f"__DONE__OK::{i18n._('nothing_else_to_install')}")
             return
-        self._result_queue.put(f"__LOG__Instalando con winget: {', '.join(packages)}")
-        self._result_queue.put("__LOG__Puede tardar varios minutos. No cierres esta ventana.\n")
+        self._result_queue.put(f"__LOG__{i18n._('installing_with_winget', packages=', '.join(packages))}")
+        self._result_queue.put(f"__LOG__{i18n._('may_take_minutes')}")
         success, message = config.install_winget_packages(packages, on_output=self._result_queue.put)
         status = "OK" if success else "FAIL"
         self._result_queue.put(f"__DONE__{status}::{message}")
@@ -471,11 +465,11 @@ class DependencyDialog(ctk.CTkToplevel):
                     self._log(("\n✅ " if success else "\n❌ ") + message)
                     self._installing = False
                     if success and not config.check_external_dependencies():
-                        self._log("Todo listo. Continuando con la conversión...")
+                        self._log(i18n._("dep_everything_ready"))
                         self.after(1200, self._finish)
                     elif self.install_button is not None:
                         current_text = self.install_button.cget("text")
-                        retry_text = current_text.split("  ", 1)[0] + "  Reintentar instalación"
+                        retry_text = current_text.split("  ", 1)[0] + "  " + i18n._("dep_retry_install")
                         self.install_button.configure(state="normal", text=retry_text)
                 else:
                     self._log(item)
