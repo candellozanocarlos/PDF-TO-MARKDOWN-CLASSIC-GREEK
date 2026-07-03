@@ -4,12 +4,11 @@ markdown/
 test_output*/
 *.md
 !README.md
+!README.es.md
 !CONTRIBUTING.md
-
 build/
 dist/
 *.spec
 .pytest_cache/
-
 # If you later add a config.local.py with your own paths, don't commit it:
 config.local.py
