@@ -213,7 +213,7 @@ If you are going to share this tool with someone who does not know what Git or a
 
 ### Tesseract and Poppler install themselves, no terminal needed
 
-These are external programs the app depends on (not Python libraries, so they cannot be bundled inside the `.exe`/`.app` itself). The first time either one is missing, a window opens inside the application offering a single button, instead of failing with a cryptic error:
+These are external programs the app depends on (not Python libraries, so they cannot be bundled inside the `.exe`/`.app` itself). This applies identically to both packaged apps, "PDF a Markdown" and "PDF a Markdown (con tablas)": they share the same dependency-checking code, so whichever one you use behaves the same way here. The first time either program is missing, a window opens inside the application offering a single button, instead of failing with a cryptic error:
 
 - **macOS:** **"🍺 Instalar automáticamente"** (or **"🍺 Instalar Homebrew y continuar"** on a brand-new Mac that does not have [Homebrew](https://brew.sh) yet). One click installs Homebrew first if needed, then Tesseract and Poppler through it, showing the progress live in the same window. If Homebrew itself has to be installed, macOS shows its own native administrator-password dialog once, the standard system prompt used by any regular installer, not a disguised terminal command; everything after that runs without further prompts.
 - **Windows:** **"🪟 Instalar automáticamente"**, using [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) (Windows' built-in package manager, present by default on Windows 10/11 kept up to date). It tries a per-user install first (`--scope user`), which avoids the UAC administrator prompt for Poppler and the Visual C++ Redistributable. Tesseract's own installer, however, is only published machine-wide, so for that one specifically it falls back to a normal install, which **does** show the standard Windows UAC prompt just for that package (accepting it is enough, no typing involved). Besides Tesseract and Poppler, it also installs the **Visual C++ Redistributable** if missing: both Tesseract and Poppler need it just to start, and on a truly clean Windows (freshly installed, or a disposable sandbox/VM) it is often not there yet, producing an unrelated-looking **"VCRUNTIME140.dll was not found"** system dialog instead of Tesseract/Poppler's own error message. Most regular, already-used Windows machines already have it installed as a side effect of other software, so in practice this step is usually a no-op.
@@ -221,6 +221,26 @@ These are external programs the app depends on (not Python libraries, so they ca
 Once installation finishes, the window closes on its own and the conversion starts immediately, no need to press "Convert" again.
 
 If the automatic button is not available for some reason (a very old Windows without winget, or a network restriction), the same window falls back to the manual instructions below.
+
+<details>
+<summary><strong>Windows: "Instalar automáticamente" keeps failing even though it says Tesseract is already installed</strong></summary>
+
+This can happen if a previous, interrupted installation attempt left a broken entry behind: Windows (and winget) believe Tesseract is installed, but the actual program files are missing, so neither installing again nor uninstalling through the normal channels works. Symptoms: `winget uninstall UB-Mannheim.TesseractOCR` fails with `Application not found`, and "Aplicaciones instaladas" in Settings shows Tesseract but its own uninstaller also fails with a "file not found" error.
+
+To fix it, remove the orphaned entry directly, then let the app reinstall cleanly:
+
+1. Open PowerShell **as Administrator**.
+2. Check the entry exists (this only reads, it does not change anything):
+   ```powershell
+   Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*' | Where-Object { $_.GetValue('DisplayName') -like '*Tesseract*' } | Select-Object PSChildName
+   ```
+3. Remove it (the exact key name is normally `Tesseract-OCR`, as returned by the command above):
+   ```powershell
+   Remove-Item -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Tesseract-OCR' -Recurse
+   ```
+4. Close and reopen the app, and try "Instalar automáticamente" again.
+
+</details>
 
 <details>
 <summary><strong>Manual installation</strong> (only needed if the automatic button above is unavailable)</summary>
