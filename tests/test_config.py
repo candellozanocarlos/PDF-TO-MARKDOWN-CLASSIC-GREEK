@@ -175,6 +175,7 @@ class TestCheckExternalDependencies:
         monkeypatch.setattr(config.shutil, "which", lambda cmd: cmd)
         monkeypatch.setattr(config.os.path, "isfile", lambda p: True)
         monkeypatch.setattr(config, "_locate_poppler", lambda: "/usr/bin/pdftoppm")
+        monkeypatch.setattr(config, "missing_tessdata_languages", lambda langs=None: [])
 
         assert config.check_external_dependencies() == []
 
@@ -193,6 +194,7 @@ class TestCheckExternalDependencies:
         monkeypatch.setattr(config.shutil, "which", lambda cmd: cmd)
         monkeypatch.setattr(config.os.path, "isfile", lambda p: True)
         monkeypatch.setattr(config, "_locate_poppler", lambda: None)
+        monkeypatch.setattr(config, "missing_tessdata_languages", lambda langs=None: [])
 
         warnings = config.check_external_dependencies()
         assert len(warnings) == 1
