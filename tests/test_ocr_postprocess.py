@@ -50,18 +50,18 @@ class TestWordReplacements:
 
 
 class TestCorpusSpecificRules:
-    def test_disabled_by_default(self):
-        # "acentuaci6n" only gets fixed by a corpus-specific rule; with the
-        # default settings it must be left as-is.
-        assert ocr.fix_text("acentuaci6n") == "acentuaci6n"
+    def test_enabled_by_default(self):
+        # Corpus-specific rules are applied by default since they were
+        # deemed safe enough for regular use; "acentuaci6n" only gets
+        # fixed by one of them.
+        assert ocr.fix_text("acentuaci6n") == "acentuación"
 
-    def test_enabled_on_request(self):
-        assert ocr.fix_text("acentuaci6n", include_corpus_specific=True) == "acentuación"
+    def test_can_be_disabled_explicitly(self):
+        assert ocr.fix_text("acentuaci6n", include_corpus_specific=False) == "acentuaci6n"
 
     def test_corpus_rules_are_kept_separate_from_general_rules(self):
         # Regression guard: corpus-specific rules must never leak into the
-        # general rule list, or every new PDF would silently inherit ad hoc
-        # corrections meant for one specific old document.
+        # general rule list, or turning them off would stop working.
         general_patterns = {r.pattern for r, _, _ in ocr.REGEX_RULES_GENERAL}
         corpus_patterns = {r.pattern for r, _, _ in ocr.REGEX_RULES_CORPUS_SPECIFIC}
         assert general_patterns.isdisjoint(corpus_patterns)
