@@ -289,7 +289,7 @@ If a document has no real tables, it is normal and expected for the application 
 `ocr_postprocess.py` splits the correction rules into three groups:
 
 - `REGEX_RULES_GENERAL`: generic, reusable rules (final sigma, ligatures, end-of-line hyphens, Leiden epigraphic notation...).
-- `REGEX_RULES_CORPUS_SPECIFIC`: ad hoc corrections learned from specific documents already processed (proper nouns, very specific word fragments). Not applied by default; enable them with `fix_text(text, include_corpus_specific=True)` only if you are reprocessing the same corpus as always.
+- `REGEX_RULES_CORPUS_SPECIFIC`: ad hoc corrections learned from specific documents already processed (proper nouns, very specific word fragments). Applied by default. Pass `fix_text(text, include_corpus_specific=False)` to disable them when processing a document outside this corpus.
 - `REGEX_RULES_GREEK`: rules specific to Greek text blocks.
 
 ## Running the tests
