@@ -42,6 +42,8 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
+import urllib.request
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -224,6 +226,17 @@ def check_external_dependencies() -> list[str]:
         else:
             instructions = i18n._("instr_poppler_linux")
         warnings.append(i18n._("dep_poppler_not_found", instructions=instructions))
+
+    # Windows-only: winget's silent Tesseract install only brings the
+    # English language data (there is no way to pick additional languages
+    # during a silent NSIS install), so a Tesseract that is otherwise
+    # perfectly installed can still be missing Greek, French, etc. This is
+    # not an issue on macOS, since 'tesseract-lang' via Homebrew already
+    # bundles every language.
+    if os.name == "nt" and (shutil.which(TESSERACT_CMD) or os.path.isfile(TESSERACT_CMD)):
+        missing_languages = missing_tessdata_languages()
+        if missing_languages:
+            warnings.append(i18n._("dep_tessdata_missing", langs=", ".join(missing_languages)))
 
     return warnings
 
@@ -523,11 +536,11 @@ def install_winget_packages(
 
     all_ok = True
     for package_id in packages:
-        on_output(f"Instalando {package_id}...")
+        on_output(i18n._("installing_package", package=package_id))
         try:
             success, returncode = _run(package_id, use_user_scope=True)
             if not success and returncode in NO_APPLICABLE_INSTALLER_CODES:
-                on_outputi18n._("winget_no_user_scope_retry", package=package_id)
+                on_output(i18n._("winget_no_user_scope_retry", package=package_id))
                 success, returncode = _run(package_id, use_user_scope=False)
             if not success:
                 check = already_present_checks.get(package_id)
@@ -545,3 +558,126 @@ def install_winget_packages(
     if all_ok:
         return True, i18n._("install_ok")
     return False, i18n._("winget_some_failed")
+
+
+# ---------------------------------------------------------------------------
+# Tesseract language packs (Windows only)
+# ---------------------------------------------------------------------------
+# winget's silent install of UB-Mannheim's Tesseract only brings the
+# English language data; there is no way to select additional languages
+# through a silent NSIS install. Without this, the very first real
+# conversion attempt in a language other than English fails with a
+# generic-looking Tesseract error ("Error opening data file ... Please
+# make sure the TESSDATA_PREFIX environment variable is set..."), which
+# gives no hint that it is a missing-language-pack problem rather than a
+# broken installation. On macOS this is a non-issue: 'tesseract-lang'
+# (installed alongside 'tesseract' via Homebrew) already bundles every
+# language.
+#
+# The language codes below match the ones offered in the app's own
+# language selector (see i18n.py's lang_* keys), so whatever the person
+# can tick in the GUI is guaranteed to actually be installed.
+TESSDATA_LANGUAGES = ["grc", "fra", "deu", "ita", "spa", "lat"]
+TESSDATA_URL_TEMPLATE = "https://github.com/tesseract-ocr/tessdata_best/raw/main/{lang}.traineddata"
+
+
+def _tessdata_dir() -> Optional[str]:
+    """
+    Where Tesseract keeps its *.traineddata files: the TESSDATA_PREFIX
+    environment variable if set, otherwise the 'tessdata' subfolder next
+    to the Tesseract executable itself.
+    """
+    env = os.environ.get("TESSDATA_PREFIX")
+    if env and os.path.isdir(env):
+        return env
+    if TESSERACT_CMD and os.path.isfile(TESSERACT_CMD):
+        candidate = os.path.join(os.path.dirname(TESSERACT_CMD), "tessdata")
+        if os.path.isdir(candidate):
+            return candidate
+    return None
+
+
+def missing_tessdata_languages(languages: Optional[list[str]] = None) -> list[str]:
+    """
+    Returns which of `languages` (defaults to TESSDATA_LANGUAGES) do not
+    yet have a .traineddata file installed. If the tessdata folder itself
+    cannot be located, every requested language counts as missing.
+    """
+    languages = languages if languages is not None else TESSDATA_LANGUAGES
+    tessdata_dir = _tessdata_dir()
+    if not tessdata_dir:
+        return list(languages)
+    return [
+        lang for lang in languages
+        if not os.path.isfile(os.path.join(tessdata_dir, f"{lang}.traineddata"))
+    ]
+
+
+def install_tessdata_languages(
+    languages: list[str], on_output: Callable[[str], None]
+) -> tuple[bool, str]:
+    """
+    Downloads the given Tesseract language codes and installs them into
+    the tessdata folder. Downloading itself never needs elevated
+    permissions (it just writes to a temporary folder); only the final
+    copy into place does, on Windows, since Tesseract's tessdata folder
+    normally lives under 'Program Files'. That last copy step uses a
+    single native Windows UAC prompt (via PowerShell's
+    'Start-Process -Verb RunAs'), the same standard elevation dialog any
+    installer uses, not a disguised terminal command.
+    Returns (success, message).
+    """
+    if not languages:
+        return True, i18n._("nothing_to_install")
+
+    tessdata_dir = _tessdata_dir()
+    if not tessdata_dir:
+        return False, i18n._("tessdata_dir_not_found")
+
+    tmp_dir = tempfile.mkdtemp(prefix="tessdata_")
+    downloaded: list[str] = []
+    for lang in languages:
+        on_output(i18n._("tessdata_downloading", lang=lang))
+        url = TESSDATA_URL_TEMPLATE.format(lang=lang)
+        dest = os.path.join(tmp_dir, f"{lang}.traineddata")
+        try:
+            urllib.request.urlretrieve(url, dest)
+            downloaded.append(dest)
+        except Exception as exc:  # noqa: BLE001
+            return False, i18n._("tessdata_download_error", lang=lang, exc=exc)
+
+    if os.access(tessdata_dir, os.W_OK):
+        try:
+            for src in downloaded:
+                shutil.copy(src, tessdata_dir)
+        except Exception as exc:  # noqa: BLE001
+            return False, i18n._("tessdata_copy_failed", exc=exc)
+        return True, i18n._("tessdata_install_ok")
+
+    # tessdata_dir is not writable by the current (non-elevated) process,
+    # as is normal under 'Program Files' on Windows: ask for a single UAC
+    # elevation to copy the already-downloaded files into place.
+    if os.name == "nt":
+        on_output(i18n._("tessdata_need_admin"))
+        copy_command = "; ".join(
+            f'Copy-Item -Path {json.dumps(src)} -Destination {json.dumps(tessdata_dir)} -Force'
+            for src in downloaded
+        )
+        try:
+            result = subprocess.run(
+                [
+                    "powershell", "-NoProfile", "-Command",
+                    f"Start-Process powershell -Verb RunAs -Wait -ArgumentList "
+                    f"'-NoProfile','-Command',{json.dumps(copy_command)}",
+                ],
+                capture_output=True, text=True,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return False, i18n._("tessdata_copy_failed", exc=exc)
+        if result.returncode != 0:
+            return False, i18n._("tessdata_copy_failed", exc=result.stderr.strip() or result.returncode)
+        if missing_tessdata_languages(languages):
+            return False, i18n._("tessdata_copy_failed", exc="unknown")
+        return True, i18n._("tessdata_install_ok")
+
+    return False, i18n._("tessdata_copy_failed", exc="permission denied")

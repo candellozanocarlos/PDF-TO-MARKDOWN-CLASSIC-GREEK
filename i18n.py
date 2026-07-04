@@ -157,6 +157,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "es": "No se encuentra Poppler (necesario para leer el PDF). {instructions}",
         "en": "Poppler was not found (needed to read the PDF). {instructions}",
     },
+    "dep_tessdata_missing": {
+        "es": "Faltan paquetes de idioma de Tesseract: {langs}. Sin ellos, el OCR en esos idiomas fallará al convertir.",
+        "en": "Tesseract language packs are missing: {langs}. Without them, OCR in those languages will fail when converting.",
+    },
     "instr_tesseract_mac": {"es": "Instálalo con Homebrew: brew install tesseract tesseract-lang", "en": "Install it with Homebrew: brew install tesseract tesseract-lang"},
     "instr_tesseract_win": {
         "es": "Instálalo desde https://github.com/UB-Mannheim/tesseract/wiki y define la variable de entorno TESSERACT_CMD con la ruta al .exe",
@@ -213,7 +217,23 @@ STRINGS: dict[str, dict[str, str]] = {
     # --- DependencyDialog: install progress lines ---
     "installing_with_homebrew": {"es": "Instalando con Homebrew: {packages}", "en": "Installing with Homebrew: {packages}"},
     "installing_with_winget": {"es": "Instalando con winget: {packages}", "en": "Installing with winget: {packages}"},
+    "installing_package": {"es": "Instalando {package}...", "en": "Installing {package}..."},
     "may_take_minutes": {"es": "Puede tardar varios minutos. No cierres esta ventana.\n", "en": "This can take several minutes. Do not close this window.\n"},
+
+    # --- config.py: Tesseract language pack download (Windows only) ---
+    "tessdata_checking": {"es": "Comprobando paquetes de idioma de Tesseract...", "en": "Checking Tesseract language packs..."},
+    "tessdata_downloading": {"es": "Descargando paquete de idioma: {lang}...", "en": "Downloading language pack: {lang}..."},
+    "tessdata_download_error": {"es": "Error descargando el paquete de idioma '{lang}': {exc}", "en": "Error downloading the '{lang}' language pack: {exc}"},
+    "tessdata_dir_not_found": {
+        "es": "No se ha encontrado la carpeta 'tessdata' de Tesseract; no se pueden instalar paquetes de idioma.",
+        "en": "Tesseract's 'tessdata' folder was not found; language packs cannot be installed.",
+    },
+    "tessdata_need_admin": {
+        "es": "Se necesita permiso de administrador para copiar los paquetes de idioma a Tesseract.",
+        "en": "Administrator permission is needed to copy the language packs into Tesseract.",
+    },
+    "tessdata_copy_failed": {"es": "No se pudieron copiar los paquetes de idioma: {exc}", "en": "Could not copy the language packs: {exc}"},
+    "tessdata_install_ok": {"es": "Paquetes de idioma instalados correctamente.", "en": "Language packs installed successfully."},
 }
 
 

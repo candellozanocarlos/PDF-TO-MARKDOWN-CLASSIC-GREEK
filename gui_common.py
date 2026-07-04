@@ -444,14 +444,28 @@ class DependencyDialog(ctk.CTkToplevel):
 
     def _run_install_windows(self) -> None:
         packages = config.missing_winget_packages()
-        if not packages:
-            self._result_queue.put(f"__DONE__OK::{i18n._('nothing_else_to_install')}")
+        if packages:
+            self._result_queue.put(f"__LOG__{i18n._('installing_with_winget', packages=', '.join(packages))}")
+            self._result_queue.put(f"__LOG__{i18n._('may_take_minutes')}")
+            success, message = config.install_winget_packages(packages, on_output=self._result_queue.put)
+            if not success:
+                self._result_queue.put(f"__DONE__FAIL::{message}")
+                return
+            self._result_queue.put(f"__LOG__✅ {message}")
+
+        # Checked unconditionally, even if Tesseract itself was already
+        # installed: winget's silent install only brings the English
+        # language data, so a Tesseract that has been sitting there for a
+        # while can still be missing Greek/French/etc.
+        missing_languages = config.missing_tessdata_languages()
+        if missing_languages:
+            self._result_queue.put(f"__LOG__{i18n._('tessdata_checking')}")
+            success, message = config.install_tessdata_languages(missing_languages, on_output=self._result_queue.put)
+            status = "OK" if success else "FAIL"
+            self._result_queue.put(f"__DONE__{status}::{message}")
             return
-        self._result_queue.put(f"__LOG__{i18n._('installing_with_winget', packages=', '.join(packages))}")
-        self._result_queue.put(f"__LOG__{i18n._('may_take_minutes')}")
-        success, message = config.install_winget_packages(packages, on_output=self._result_queue.put)
-        status = "OK" if success else "FAIL"
-        self._result_queue.put(f"__DONE__{status}::{message}")
+
+        self._result_queue.put(f"__DONE__OK::{i18n._('nothing_else_to_install')}")
 
     def _poll_queue(self) -> None:
         try:

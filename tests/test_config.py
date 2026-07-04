@@ -207,6 +207,72 @@ class TestCheckExternalDependencies:
         warnings = config.check_external_dependencies()
         assert len(warnings) == 2
 
+    def test_warns_about_missing_tessdata_languages_on_windows(self, monkeypatch):
+        monkeypatch.setattr(config, "TESSERACT_CMD", r"C:\Program Files\Tesseract-OCR\tesseract.exe")
+        monkeypatch.setattr(config.shutil, "which", lambda cmd: cmd)
+        monkeypatch.setattr(config.os.path, "isfile", lambda p: True)
+        monkeypatch.setattr(config, "_locate_poppler", lambda: r"C:\poppler\Library\bin\pdftoppm.exe")
+        monkeypatch.setattr(config.os, "name", "nt")
+        monkeypatch.setattr(config, "missing_tessdata_languages", lambda langs=None: ["grc", "fra"])
+
+        warnings = config.check_external_dependencies()
+        assert len(warnings) == 1
+        assert "grc" in warnings[0] and "fra" in warnings[0]
+
+    def test_does_not_check_tessdata_languages_outside_windows(self, monkeypatch):
+        monkeypatch.setattr(config, "TESSERACT_CMD", "/usr/bin/tesseract")
+        monkeypatch.setattr(config.shutil, "which", lambda cmd: cmd)
+        monkeypatch.setattr(config.os.path, "isfile", lambda p: True)
+        monkeypatch.setattr(config, "_locate_poppler", lambda: "/usr/bin/pdftoppm")
+        monkeypatch.setattr(config.os, "name", "posix")
+        monkeypatch.setattr(config, "missing_tessdata_languages", lambda langs=None: ["grc", "fra"])
+
+        assert config.check_external_dependencies() == []
+
+
+class TestTessdataLanguages:
+    def test_missing_languages_all_reported_when_tessdata_dir_not_found(self, monkeypatch):
+        monkeypatch.setattr(config, "_tessdata_dir", lambda: None)
+        assert config.missing_tessdata_languages(["grc", "fra"]) == ["grc", "fra"]
+
+    def test_missing_languages_only_lists_absent_files(self, monkeypatch, tmp_path):
+        (tmp_path / "grc.traineddata").write_text("stub")
+        monkeypatch.setattr(config, "_tessdata_dir", lambda: str(tmp_path))
+        assert config.missing_tessdata_languages(["grc", "fra"]) == ["fra"]
+
+    def test_missing_languages_empty_when_all_present(self, monkeypatch, tmp_path):
+        (tmp_path / "grc.traineddata").write_text("stub")
+        (tmp_path / "fra.traineddata").write_text("stub")
+        monkeypatch.setattr(config, "_tessdata_dir", lambda: str(tmp_path))
+        assert config.missing_tessdata_languages(["grc", "fra"]) == []
+
+    def test_install_returns_true_immediately_when_nothing_requested(self):
+        assert config.install_tessdata_languages([], on_output=lambda msg: None) == (
+            True, config.i18n._("nothing_to_install")
+        )
+
+    def test_install_fails_when_tessdata_dir_not_found(self, monkeypatch):
+        monkeypatch.setattr(config, "_tessdata_dir", lambda: None)
+        success, message = config.install_tessdata_languages(["grc"], on_output=lambda msg: None)
+        assert success is False
+        assert message == config.i18n._("tessdata_dir_not_found")
+
+    def test_install_copies_directly_when_tessdata_dir_is_writable(self, monkeypatch, tmp_path):
+        dest_dir = tmp_path / "tessdata"
+        dest_dir.mkdir()
+        monkeypatch.setattr(config, "_tessdata_dir", lambda: str(dest_dir))
+
+        def fake_urlretrieve(url, dest):
+            with open(dest, "w") as f:
+                f.write("stub")
+
+        monkeypatch.setattr(config.urllib.request, "urlretrieve", fake_urlretrieve)
+
+        logs = []
+        success, message = config.install_tessdata_languages(["grc"], on_output=logs.append)
+        assert success is True
+        assert (dest_dir / "grc.traineddata").is_file()
+
 
 class TestLocatePoppler:
     def test_finds_pdftoppm_in_configured_poppler_path(self, monkeypatch, tmp_path):
