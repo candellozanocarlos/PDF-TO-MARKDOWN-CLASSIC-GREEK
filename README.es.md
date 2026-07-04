@@ -289,7 +289,7 @@ Si un documento no tiene tablas de verdad, es normal y esperable que la aplicaci
 `ocr_postprocess.py` divide las reglas de corrección en tres grupos:
 
 - `REGEX_RULES_GENERAL`: reglas genéricas y reutilizables (sigma final, ligaduras, guiones de fin de línea, notación epigráfica de Leiden...).
-- `REGEX_RULES_CORPUS_SPECIFIC`: correcciones puntuales aprendidas de documentos concretos ya procesados (nombres propios, fragmentos de palabra muy específicos). No se aplican por defecto; actívalas con `fix_text(text, include_corpus_specific=True)` solo si estás reprocesando el mismo corpus de siempre.
+- `REGEX_RULES_CORPUS_SPECIFIC`: correcciones puntuales aprendidas de documentos concretos ya procesados (nombres propios, fragmentos de palabra muy específicos). Se aplican por defecto. Pasa `fix_text(text, include_corpus_specific=False)` para desactivarlas si procesas un documento fuera de este corpus.
 - `REGEX_RULES_GREEK`: reglas específicas para bloques de texto griego.
 
 ## Ejecutar los tests

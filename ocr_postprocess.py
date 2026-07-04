@@ -216,6 +216,17 @@ REGEX_RULES_GENERAL = [
      "",
      "Removes column separator lines"),
 
+    # --- Section sign (§) OCR confusions (common in academic PDFs) ---
+    # $$ and $ before a digit are almost never legitimate in philological texts.
+
+    (re.compile(r"\$\$\s*(?=\d)"),
+     "§§ ",
+     "$$ before digit → §§ (section sign double)"),
+
+    (re.compile(r"\$\s*(?=\d)"),
+     "§",
+     "$ before digit → § (section sign)"),
+
     # --- French academic spelling ---
 
     (re.compile(r"«\s+"),
@@ -248,8 +259,8 @@ REGEX_RULES_GENERAL = [
 # already processed. They are kept separate from REGEX_RULES_GENERAL
 # because they are ad hoc corrections (proper nouns, very specific word
 # fragments) that do not make sense to apply to a brand-new PDF. Enable
-# them with fix_text(text, include_corpus_specific=True) if you are
-# reprocessing the same corpus as always.
+# They are applied by default. Pass include_corpus_specific=False to
+# disable them when processing a document outside this corpus.
 # ---------------------------------------------------------------------------
 
 REGEX_RULES_CORPUS_SPECIFIC = [
@@ -473,6 +484,128 @@ REGEX_RULES_CORPUS_SPECIFIC = [
     (re.compile(r"relaci6n", re.IGNORECASE | re.UNICODE),
      "relación",
      "Spanish ci6n→ción (noun ending; text being corrected is Spanish)"),
+
+    # --- Brill journal running footer artifacts ---
+    # The footer of Brill PDFs (MNEMOSYNE, Glotta, etc.) is OCR'd with
+    # systematic errors.  These are safe to apply to any Brill corpus.
+
+    (re.compile(r"MNEMOSYNE\s*\(22h\)\s*1526\s*,?\s*4\.17-41a0", re.IGNORECASE),
+     "MNEMOSYNE (2021) 1-26",
+     "Brill footer: (22h) 1526, 4.17-41a0 → (2021) 1-26"),
+
+    (re.compile(r"\bomnioaded\b", re.IGNORECASE),
+     "Downloaded",
+     "omnioaded → Downloaded (Brill OCR artifact)"),
+
+    (re.compile(r"omnioaded\s+from\s+ΒΗ\s+com(?=\d)"),
+     "Downloaded from Brill.com",
+     "'omnioaded from ΒΗ com' → 'Downloaded from Brill.com'"),
+
+    (re.compile(r"\bjed\s+from\s+Brill\.com"),
+     "Downloaded from Brill.com",
+     "Truncated 'jed from Brill.com' → 'Downloaded from Brill.com'"),
+
+    # --- LOD abbreviation (Les lamelles oraculaires de Dodone, Lhôte 2006) ---
+    # The capital L of "LOD" is read as "[Γ" or "[Ο" depending on the font.
+
+    (re.compile(r"\[ΓΟ\b"),
+     "LOD",
+     "[ΓΟ → LOD (Les lamelles oraculaires de Dodone, abbreviation)"),
+
+    (re.compile(r"\[ΟΡ\b"),
+     "LOD",
+     "[ΟΡ → LOD (LOD abbreviation OCR error)"),
+
+    # --- French words misread as Greek ---
+
+    (re.compile(r"\bὕπο\s+liste\b"),
+     "Une liste",
+     "ὕπο liste → Une liste (French 'Une' OCR'd as Greek)"),
+
+    # --- Section sign ὃ (omicron with psili+varia) before a digit ---
+    # In Brill PDFs, ὃ immediately before an integer always represents §.
+    # The true Greek article ὃ never precedes a bare numeral in these texts.
+
+    (re.compile(r"\bὃ\s+(?=\d)"),
+     "§ ",
+     "ὃ before digit → § (section sign OCR error in Brill PDFs)"),
+
+    # -----------------------------------------------------------------------
+    # OCR fixes from Alonso Déniz 2022 (Mnemosyne 2021, Brill)
+    # Diplomatic text and apparatus criticus of the L2 lead tablet
+    # (Apollonia d'Illyrie, hymne à Asclépios, SEG 65 397)
+    # -----------------------------------------------------------------------
+
+    # L2 verse 1: ΗΙΛΑΟΝ in epigraphic mixed font
+    (re.compile(r"\bhiAdov\b"),
+     "hιλάο̄ν",
+     "hiAdov → hιλάο̄ν (L2 diplomatic text, epigraphic form of ἱλάων)"),
+
+    # Apparatus v.1-2: Cabanes reading (backslash is literal in source)
+    (re.compile(r"ht\\aov\s+Cabanes"),
+     "hίλαον Cabanes",
+     r"ht\aov Cabanes → hίλαον Cabanes (apparatus criticus)"),
+
+    # Apparatus v.1-2: Lhôte reading with Leiden angle brackets
+    (re.compile(r"hlAao\(ç\)\s+Lhôte"),
+     "hίλαο⟨ς⟩ Lhôte",
+     "hlAao(ç) Lhôte → hίλαο⟨ς⟩ Lhôte (apparatus criticus)"),
+
+    # Apparatus v.1: [ἵλα]ος A — the ἵ was swallowed by the OCR
+    (re.compile(r"\[λα\]ος A"),
+     "[ἵλα]ος A",
+     "[λα]ος A → [ἵλα]ος A (ἵ lost in OCR)"),
+
+    # Apparatus v.3: Lhôte reading [ἰε̄̀ (sic) ο̄̓]
+    (re.compile(r"\[lé\s+\(sic\)\s+ὁ\]"),
+     "[ἰε̄̀ (sic) ο̄̓]",
+     "[lé (sic) ὁ] → [ἰε̄̀ (sic) ο̄̓] (apparatus criticus v.3, Lhôte)"),
+
+    # Apparatus v.3: Dion reading (ἰὲ ὦ ἰὲ ὦ ἰὲ D)
+    (re.compile(r"lédlédièD"),
+     "ἰὲ ὦ ἰὲ ὦ ἰὲ D",
+     "lédlédièD → ἰὲ ὦ ἰὲ ὦ ἰὲ D (apparatus criticus, Dion reading)"),
+
+    # Apparatus v.4: combined block ἁ[μᾶς] Cabanes, ἁ[μέ] Lhôte
+    # The & is a mangled ἁ; [uäç] is [μᾶς]; d[pé] is ἁ[μέ]
+    (re.compile(r"4\.\s*&\s*\[uäç\]\s+Cabanes,\s+d\[pé\]\s+Lhôte"),
+     "4. ἁ[μᾶς] Cabanes, ἁ[μέ] Lhôte",
+     "4.&[uäç] Cabanes, d[pé] Lhôte → 4. ἁ[μᾶς] Cabanes, ἁ[μέ] Lhôte"),
+
+    # Apparatus v.4: EPD reading ἡμᾶς E P D
+    (re.compile(r"hpuäçEPD"),
+     "ἡμᾶς E P D",
+     "hpuäçEPD → ἡμᾶς E P D (apparatus criticus, E P D reading)"),
+
+    # L1 line 3: prophetess title hα μάντις (Dodona)
+    (re.compile(r"Βα\s+pavris"),
+     "hα μάντις",
+     "Βα pavris → hα μάντις (L1 l.3, title of the Dodona prophetess)"),
+
+    # CEG 396.3 (Metapontum, ca. 500 BC): ϝάναξ Hε̄́ρακλες
+    (re.compile(r"FavaË\s+Héponches"),
+     "ϝάναξ Hε̄́ρακλες",
+     "FavaË Héponches → ϝάναξ Hε̄́ρακλες (CEG 396.3, Metapontum)"),
+
+    # CEG 396.3: ἀγαθάν (last word of the cited line)
+    (re.compile(r"\bdyaodv\b"),
+     "ἀγαθάν",
+     "dyaodv → ἀγαθάν (CEG 396.3, Metapontum)"),
+
+    # Footnote 68: scholion reference (= and CÉ.XIL6 both garbled)
+    (re.compile(r"=\s*CÉ\.XIL6\.414b-cE\.?"),
+     "Cf. Σ Il. 6.414b-c E.",
+     "= CÉ.XIL6.414b-cE. → Cf. Σ Il. 6.414b-c E. (scholion reference, fn.68)"),
+
+    # Footnote 71: Εἰ (Greek εἰ) used for Latin 'Cf.' + Ἀλχ→Ἀλκ (χ/κ OCR confusion)
+    (re.compile(r"Εἰ\s+Ἀλχίμου"),
+     "Cf. Ἀλκίμου",
+     "Εἰ Ἀλχίμου → Cf. Ἀλκίμου (fn.71: Εἰ=Cf., χ→κ)"),
+
+    # Footnote 71: Todôv → ποδο̃ν (genitive plural, IG 9.12.4 874)
+    (re.compile(r"\bTodôv\b"),
+     "ποδο̃ν",
+     "Todôv → ποδο̃ν (fn.71, IG 9.12.4 874.3)"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -676,7 +809,7 @@ def fix_text(
     text: str,
     verbose: bool = False,
     mode: str = "full",
-    include_corpus_specific: bool = False,
+    include_corpus_specific: bool = True,
 ) -> str:
     """
     Applies the full OCR post-processing pipeline to the text.
@@ -690,9 +823,10 @@ def fix_text(
         - "general": only general and epigraphic rules (no Greek corrections).
         - "greek": explicit alias for "full".
     include_corpus_specific : bool
-        If True, also applies REGEX_RULES_CORPUS_SPECIFIC (ad hoc
+        If True (default), also applies REGEX_RULES_CORPUS_SPECIFIC (ad hoc
         corrections learned from specific documents already processed).
-        Leave it False for a new PDF that is not part of that corpus.
+        Pass False only if you are processing a document outside this corpus
+        and the corpus-specific patterns could produce false positives.
 
     Returns
     -------
