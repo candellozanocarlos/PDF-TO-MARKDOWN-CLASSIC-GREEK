@@ -28,6 +28,7 @@ from gui_common import (
     SECONDARY_TEXT_COLOR,
     ConversionEngine,
     ensure_dependencies,
+    fit_window_to_screen,
     open_file,
     open_folder,
     create_file_selector,
@@ -41,7 +42,7 @@ class App(ctk.CTk):
     def __init__(self) -> None:
         super().__init__()
         self.title(i18n._("app_title_basic"))
-        self.geometry("680x700")
+        fit_window_to_screen(self, 680, 700)
         self.minsize(600, 620)
 
         self.engine = ConversionEngine()

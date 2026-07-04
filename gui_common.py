@@ -27,6 +27,21 @@ import traceback
 from pathlib import Path
 from typing import Callable, Optional
 
+# On Windows, must run before any customtkinter/Tk window is created.
+# Without this, Tk sometimes miscalculates widget sizes on machines that
+# report an unusual display scaling (virtual machines and sandboxes are
+# frequent offenders), which can visually squeeze some widgets, such as
+# the conversion log box, down to a sliver even though the code asks for
+# a normal height. Declaring the process as DPI-aware up front tells
+# Windows not to apply its own scaling behind Tk's back, so Tk's own
+# layout math (which already accounts for DPI) is the only one in play.
+if os.name == "nt":
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)  # PROCESS_SYSTEM_DPI_AWARE
+    except Exception:  # noqa: BLE001
+        pass
+
 import customtkinter as ctk
 import pytesseract
 from pdf2image import convert_from_path
@@ -34,6 +49,23 @@ from pdf2image import convert_from_path
 import config
 import i18n
 from ocr_postprocess import fix_text
+
+def fit_window_to_screen(window: ctk.CTk, width: int, height: int) -> None:
+    """
+    Sets the window's initial size to (width, height), but shrinks it to
+    fit if the actual screen (physical or a virtual machine's) is
+    smaller than that, leaving a small margin for the taskbar/title bar.
+    Without this, a window taller than the available screen can end up
+    with its bottom edge (often the conversion log box) rendered off
+    screen or visually squeezed.
+    """
+    window.update_idletasks()
+    screen_width = window.winfo_screenwidth()
+    screen_height = window.winfo_screenheight()
+    fitted_width = min(width, screen_width - 40)
+    fitted_height = min(height, screen_height - 80)
+    window.geometry(f"{fitted_width}x{fitted_height}")
+
 
 def _tesseract_languages() -> list[tuple[str, str]]:
     return [
