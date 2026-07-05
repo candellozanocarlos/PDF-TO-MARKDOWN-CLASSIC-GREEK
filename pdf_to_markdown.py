@@ -113,7 +113,8 @@ def open_file(path: Path) -> None:
 
 def main() -> None:
     args = build_parser().parse_args()
-    warnings = config.check_external_dependencies()
+    requested_languages = args.lang.split("+")
+    warnings = config.check_external_dependencies(languages=requested_languages)
     for warning in warnings:
         print(f"[error] {warning}", file=sys.stderr)
     if warnings:

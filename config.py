@@ -189,10 +189,17 @@ def _locate_poppler() -> Optional[str]:
     return _find_executable(name)
 
 
-def check_external_dependencies() -> list[str]:
+def check_external_dependencies(languages: Optional[list[str]] = None) -> list[str]:
     """
     Checks that Tesseract and Poppler can be located. Returns a list of
     warning messages (empty if everything is in order).
+
+    `languages` restricts the Tesseract language-data check (see the
+    Windows-only block below) to the given language codes, e.g. the ones
+    the caller actually requested via --lang. If omitted, every language
+    in TESSDATA_LANGUAGES is checked, which is the right default for
+    contexts (like the GUI at startup) that have not asked for a specific
+    language yet.
 
     Important: this function does NOT print anything on its own. Desktop
     applications packaged with PyInstaller in --windowed mode have no
@@ -234,7 +241,7 @@ def check_external_dependencies() -> list[str]:
     # not an issue on macOS, since 'tesseract-lang' via Homebrew already
     # bundles every language.
     if os.name == "nt" and (shutil.which(TESSERACT_CMD) or os.path.isfile(TESSERACT_CMD)):
-        missing_languages = missing_tessdata_languages()
+        missing_languages = missing_tessdata_languages(languages)
         if missing_languages:
             warnings.append(i18n._("dep_tessdata_missing", langs=", ".join(missing_languages)))
 
