@@ -101,6 +101,7 @@ def build_summary(reports: List[Dict], skipped: List[str]) -> Dict:
             "pages_skipped_no_reference": skipped,
             "mean_base_letter_similarity_pct": None,
             "mean_diacritic_accuracy_pct": None,
+            "mean_word_overlap_pct": None,
             "pages_passed": 0,
             "pages_with_errors": 0,
         }
@@ -113,6 +114,12 @@ def build_summary(reports: List[Dict], skipped: List[str]) -> Dict:
         if r["metrics"]["diacritic_integrity"]["diacritic_accuracy_pct"] is not None
     ]
 
+    word_overlaps = [
+        r["metrics"]["word_overlap_pct"]
+        for r in reports
+        if "word_overlap_pct" in r["metrics"]
+    ]
+
     passed = sum(1 for r in reports if r["passed"])
 
     return {
@@ -121,6 +128,9 @@ def build_summary(reports: List[Dict], skipped: List[str]) -> Dict:
         "mean_base_letter_similarity_pct": round(mean(base_similarities), 2),
         "mean_diacritic_accuracy_pct": (
             round(mean(diacritic_accuracies), 2) if diacritic_accuracies else None
+        ),
+        "mean_word_overlap_pct": (
+            round(mean(word_overlaps), 2) if word_overlaps else None
         ),
         "pages_passed": passed,
         "pages_with_errors": len(reports) - passed,
