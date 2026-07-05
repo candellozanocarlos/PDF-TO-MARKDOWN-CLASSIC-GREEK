@@ -16,6 +16,18 @@ This way, a text with correct letters but faulty accentuation does not
 receive the same penalty as a text with misrecognized letters, a
 distinction that a plain global Levenshtein distance cannot make.
 
+A fourth, order-independent layer (word overlap) is also included. It
+compares which words appear in both texts, regardless of position. This
+matters because reference texts assembled from a Word document (with
+footnotes reinserted near their citation mark) will not always follow
+the exact reading order an OCR pass over the printed pages produces
+(footnotes always end up at the bottom of the page, not mid-sentence).
+Long-range reordering like this can derail a strict sequence-alignment
+score even when the actual content matches well, so word overlap is a
+useful cross-check whenever the two texts being compared are not
+guaranteed to be in identical order (e.g. whole articles rather than
+single, already order-matched pages).
+
 Basic usage:
 
     from quality_verifier_greek import verify_greek_conversion
@@ -29,6 +41,7 @@ part of the Python standard library).
 
 import unicodedata
 import difflib
+from collections import Counter
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional
 
@@ -151,6 +164,34 @@ def content_counts(reference: str, hypothesis: str) -> Dict:
 
 
 # ---------------------------------------------------------------------------
+# Layer 4: order-independent word overlap
+# ---------------------------------------------------------------------------
+
+def word_overlap(reference: str, hypothesis: str) -> float:
+    """
+    Dice coefficient (0-100) between the two texts' word multisets, with
+    diacritics stripped and case ignored. Unlike base_similarity, this
+    layer does not care where a word sits in the text, only whether it
+    appears in both, so long-range reordering (e.g. a footnote reinserted
+    near its citation mark instead of at the bottom of its printed page)
+    does not by itself lower the score.
+    """
+    ref_words = strip_diacritics(reference).lower().split()
+    hyp_words = strip_diacritics(hypothesis).lower().split()
+
+    ref_counts = Counter(ref_words)
+    hyp_counts = Counter(hyp_words)
+
+    shared = sum((ref_counts & hyp_counts).values())
+    total = sum(ref_counts.values()) + sum(hyp_counts.values())
+
+    if total == 0:
+        return 100.0
+
+    return (2 * shared / total) * 100
+
+
+# ---------------------------------------------------------------------------
 # Configurable thresholds
 # ---------------------------------------------------------------------------
 
@@ -160,6 +201,7 @@ class GreekQualityThresholds:
     max_word_diff_pct: float = 5.0
     min_base_similarity_pct: float = 90.0
     min_diacritic_accuracy_pct: float = 70.0  # deliberately more lenient
+    min_word_overlap_pct: float = 85.0
 
 
 # ---------------------------------------------------------------------------
@@ -182,6 +224,7 @@ def verify_greek_conversion(
     content = content_counts(reference, hypothesis)
     base_sim = base_similarity(reference, hypothesis)
     diacritics = diacritic_score(reference, hypothesis)
+    overlap = word_overlap(reference, hypothesis)
 
     warnings: List[str] = []
     errors: List[str] = []
@@ -215,6 +258,15 @@ def verify_greek_conversion(
             "Check breathings, accents, and iota subscript."
         )
 
+    if overlap < thresholds.min_word_overlap_pct:
+        warnings.append(
+            f"Order-independent word overlap is {round(overlap, 2)}%, "
+            f"below the threshold ({thresholds.min_word_overlap_pct}%). "
+            "If base-letter similarity is also low but this figure is high, "
+            "the texts likely match in content but differ in order (e.g. "
+            "footnote placement), rather than in actual OCR accuracy."
+        )
+
     passed = len(errors) == 0
 
     return {
@@ -223,6 +275,7 @@ def verify_greek_conversion(
             "content": content,
             "base_letter_similarity_pct": round(base_sim, 2),
             "diacritic_integrity": diacritics,
+            "word_overlap_pct": round(overlap, 2),
         },
         "warnings": warnings,
         "errors": errors,
