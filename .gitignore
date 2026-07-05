@@ -12,3 +12,5 @@ dist/
 .pytest_cache/
 # If you later add a config.local.py with your own paths, don't commit it:
 config.local.py
+verification/reports/
+!verification/reports/.gitkeep
