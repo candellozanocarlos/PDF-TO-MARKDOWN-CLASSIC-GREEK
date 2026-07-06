@@ -606,6 +606,84 @@ REGEX_RULES_CORPUS_SPECIFIC = [
     (re.compile(r"\bTodôv\b"),
      "ποδο̃ν",
      "Todôv → ποδο̃ν (fn.71, IG 9.12.4 874.3)"),
+
+    # -----------------------------------------------------------------------
+    # OCR fixes from Alonso Déniz 2022, page 2 (Mnemosyne 2021, Brill)
+    # -----------------------------------------------------------------------
+
+    # --- French è misread as é: a systematic OCR confusion in this PDF,
+    # not a one-off typo, so it is worth listing every affected word seen
+    # so far rather than a single blanket accent-swapping rule (which
+    # would also wrongly touch words that legitimately have é). ---
+    (re.compile(r"\br\u00e9glement\b", re.IGNORECASE),
+     "règlement",
+     "réglement → règlement (French è misread as é)"),
+
+    (re.compile(r"\bdeuxi\u00e9me\b", re.IGNORECASE),
+     "deuxième",
+     "deuxiéme → deuxième (French è misread as é)"),
+
+    (re.compile(r"\bci-apr\u00e9s\b", re.IGNORECASE),
+     "ci-après",
+     "ci-aprés → ci-après (French è misread as é)"),
+
+    (re.compile(r"\bderni\u00e9re\b", re.IGNORECASE),
+     "dernière",
+     "derniére → dernière (French è misread as é)"),
+
+    (re.compile(r"\bparenth\u00e9ses\b", re.IGNORECASE),
+     "parenthèses",
+     "parenthéses → parenthèses (French è misread as é)"),
+
+    (re.compile(r"\bcompl\u00e9te\b", re.IGNORECASE),
+     "complète",
+     "compléte → complète (French è misread as é)"),
+
+    (re.compile(r"\bAth\u00e9nes\b", re.IGNORECASE),
+     "Athènes",
+     "Athénes → Athènes (French è misread as é)"),
+
+    (re.compile(r"\bsi\u00e9cle\b", re.IGNORECASE),
+     "siècle",
+     "siécle → siècle (French è misread as é)"),
+
+    (re.compile(r"\bpr\u00e9s\b(?=\s+(?:de|du))"),
+     "près",
+     "prés → près (French è misread as é; only before 'de'/'du', to avoid "
+     "touching the real word 'prés', meadows)"),
+
+    (re.compile(r"\bpres\b(?=\s+(?:de|du))", re.IGNORECASE),
+     "près",
+     "pres → près (accent dropped entirely by OCR; only before 'de'/'du', "
+     "to avoid touching unrelated words)"),
+
+    (re.compile(r"\btr\u00e9s\b", re.IGNORECASE),
+     "très",
+     "trés → très (French è misread as é)"),
+
+    # --- Editor's surname consistently misread throughout this article ---
+    (re.compile(r"\bLh\u00e9te\b"),
+     "Lhôte",
+     "Lhéte → Lhôte (editor's surname, é/ô OCR confusion)"),
+
+    # --- Superscript footnote-reference digits misread as punctuation
+    # marks: specific to this page's footnote numbering, hence anchored
+    # to the exact preceding word rather than a general symbol swap. ---
+    (re.compile(r"Dodone,\?"),
+     "Dodone,3",
+     "Dodone,? → Dodone,3 (superscript footnote 3 misread as '?')"),
+
+    (re.compile(r"religieuses\.\*"),
+     "religieuses.4",
+     "religieuses.* → religieuses.4 (superscript footnote 4 misread as '*')"),
+
+    (re.compile(r"pierre\.\u00ae"),
+     "pierre.5",
+     "pierre.® → pierre.5 (superscript footnote 5 misread as '®')"),
+
+    (re.compile(r"Carbon\.\u2019"),
+     "Carbon.7",
+     "Carbon.' → Carbon.7 (superscript footnote 7 misread as a curly apostrophe)"),
 ]
 
 # ---------------------------------------------------------------------------
