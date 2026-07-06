@@ -8,12 +8,12 @@ authors:
     affiliation: "Universidad de Valladolid"
 repository-code: "https://github.com/candellozanocarlos/PDF-TO-MARKDOWN-CLASSIC-GREEK"
 license: MIT
-version: 1.13.0
+version: 1.15.0
 date-released: 2026-07-02
 identifiers:
   - type: doi
-    value: "10.5281/zenodo.21158286"
-    description: "DOI of version v1.13 on Zenodo (English-language metadata)"
+    value: "10.5281/zenodo.21195565"
+    description: "DOI of version v1.15 on Zenodo (English-language metadata)"
 keywords:
   - OCR
   - "classical Greek"
