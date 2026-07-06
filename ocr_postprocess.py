@@ -667,23 +667,30 @@ REGEX_RULES_CORPUS_SPECIFIC = [
      "Lhéte → Lhôte (editor's surname, é/ô OCR confusion)"),
 
     # --- Superscript footnote-reference digits misread as punctuation
-    # marks: specific to this page's footnote numbering, hence anchored
-    # to the exact preceding word rather than a general symbol swap. ---
-    (re.compile(r"Dodone,\?"),
+    # marks: specific to this page's footnote numbering (anchored to the
+    # exact preceding word), but the garbled symbol itself is NOT stable
+    # across OCR runs (Tesseract has produced '?', '*' and other symbols
+    # for the very same footnote 3 marker on different runs). The
+    # wildcard below matches any single non-alphanumeric character in
+    # that position instead of one fixed symbol, and a negative lookahead
+    # skips the (harmless but pointless) case where it is already the
+    # correct digit.
+    (re.compile(r"Dodone,(?!3)\S"),
      "Dodone,3",
-     "Dodone,? → Dodone,3 (superscript footnote 3 misread as '?')"),
+     "Dodone,<garbled symbol> → Dodone,3 (superscript footnote 3; the "
+     "exact wrong symbol varies between OCR runs)"),
 
-    (re.compile(r"religieuses\.\*"),
+    (re.compile(r"religieuses\.(?!4)\S"),
      "religieuses.4",
-     "religieuses.* → religieuses.4 (superscript footnote 4 misread as '*')"),
+     "religieuses.<garbled symbol> → religieuses.4 (superscript footnote 4)"),
 
-    (re.compile(r"pierre\.\u00ae"),
+    (re.compile(r"pierre\.(?!5)\S"),
      "pierre.5",
-     "pierre.® → pierre.5 (superscript footnote 5 misread as '®')"),
+     "pierre.<garbled symbol> → pierre.5 (superscript footnote 5)"),
 
-    (re.compile(r"Carbon\.\u2019"),
+    (re.compile(r"Carbon\.(?!7)\S"),
      "Carbon.7",
-     "Carbon.' → Carbon.7 (superscript footnote 7 misread as a curly apostrophe)"),
+     "Carbon.<garbled symbol> → Carbon.7 (superscript footnote 7)"),
 ]
 
 # ---------------------------------------------------------------------------

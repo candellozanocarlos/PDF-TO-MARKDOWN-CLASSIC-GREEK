@@ -340,3 +340,14 @@ class TestAlonsoDenizPage2Fixes:
         assert ocr.fix_text("des affaires religieuses.*") == "des affaires religieuses.4"
         assert ocr.fix_text("plusieurs inscriptions sur pierre.\u00ae") == "plusieurs inscriptions sur pierre.5"
         assert ocr.fix_text("lectures de J.-M. Carbon.\u2019") == "lectures de J.-M. Carbon.7"
+
+    def test_footnote_marker_rule_handles_any_garbled_symbol(self):
+        # Tesseract is not deterministic: the same footnote 3 marker has
+        # been observed rendered as both '?' and '*' across different
+        # OCR runs of the same page, so the rule must not be anchored to
+        # one specific symbol.
+        assert ocr.fix_text("l'oracle de Dodone,*") == "l'oracle de Dodone,3"
+        assert ocr.fix_text("l'oracle de Dodone,#") == "l'oracle de Dodone,3"
+
+    def test_footnote_marker_already_correct_is_left_untouched(self):
+        assert ocr.fix_text("l'oracle de Dodone,3") == "l'oracle de Dodone,3"
