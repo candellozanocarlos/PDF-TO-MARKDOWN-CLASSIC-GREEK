@@ -306,3 +306,37 @@ class TestRegexRulesAlias:
             + ocr.REGEX_RULES_CORPUS_SPECIFIC
             + ocr.REGEX_RULES_GREEK
         )
+
+
+class TestAlonsoDenizPage2Fixes:
+    def test_french_e_grave_misread_as_e_acute_is_corrected(self):
+        cases = {
+            "un réglement sacrificiel": "un règlement sacrificiel",
+            "La deuxiéme lamelle": "La deuxième lamelle",
+            "ci-aprés Lz": "ci-après Lz",
+            "la derniére strophe": "la dernière strophe",
+            "entre parenthéses": "entre parenthèses",
+            "composition compléte": "composition complète",
+            "D = Dion, A = Athénes": "D = Dion, A = Athènes",
+            "119-11 siécle apr.": "119-11 siècle apr.",
+            "de lecture trés difficile": "de lecture très difficile",
+        }
+        for before, after in cases.items():
+            assert ocr.fix_text(before) == after
+
+    def test_pres_before_de_or_du_is_corrected_with_or_without_accent(self):
+        assert ocr.fix_text("retrouvée pres de la fosse") == "retrouvée près de la fosse"
+        assert ocr.fix_text("retrouvée prés de la fosse") == "retrouvée près de la fosse"
+
+    def test_pres_meaning_meadows_is_left_untouched(self):
+        # "prés" (meadows) must survive when not followed by de/du.
+        assert ocr.fix_text("les prés verdoyants") == "les prés verdoyants"
+
+    def test_editor_surname_lhote_is_corrected(self):
+        assert ocr.fix_text("proposée par E. Lhéte, avec") == "proposée par E. Lhôte, avec"
+
+    def test_footnote_marker_symbols_are_restored_to_digits(self):
+        assert ocr.fix_text("l'oracle de Dodone,?") == "l'oracle de Dodone,3"
+        assert ocr.fix_text("des affaires religieuses.*") == "des affaires religieuses.4"
+        assert ocr.fix_text("plusieurs inscriptions sur pierre.\u00ae") == "plusieurs inscriptions sur pierre.5"
+        assert ocr.fix_text("lectures de J.-M. Carbon.\u2019") == "lectures de J.-M. Carbon.7"
