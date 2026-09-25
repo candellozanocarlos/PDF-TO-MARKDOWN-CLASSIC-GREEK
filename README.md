@@ -190,6 +190,8 @@ See all options:
 python pdf_to_markdown.py --help
 ```
 
+**Digital PDFs:** if a page already has a usable text layer, it is read directly instead of being OCR'd (short Greek words, sub-dots, macrons, brackets and the '?' of uncertain dates are preserved). OCR is only applied to scanned pages or to pages with a broken text layer (e.g. old Greek fonts without a Unicode mapping). Use `--force-ocr` to OCR every page. Pages are rasterized one at a time, so long books no longer need to be split into page ranges.
+
 The resulting `.md` is saved in the output folder given with `-o` and opens automatically when done (use `--no-open` to disable this; on Linux/macOS it opens with `xdg-open`/`open` if available).
 
 ### Language configuration

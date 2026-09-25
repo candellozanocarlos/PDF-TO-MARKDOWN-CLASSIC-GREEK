@@ -351,3 +351,26 @@ class TestAlonsoDenizPage2Fixes:
 
     def test_footnote_marker_already_correct_is_left_untouched(self):
         assert ocr.fix_text("l'oracle de Dodone,3") == "l'oracle de Dodone,3"
+
+
+class TestUncertainDates:
+    def test_descending_range_question_mark(self):
+        assert "(ΧΕΔ 2242A.3, 500-450?)" in ocr.fix_text("(XEA 2242A.3, 500-4507)")
+
+    def test_circa_question_mark(self):
+        assert "ca. 400?" in ocr.fix_text("(XEA 1368A.1 ca. 4007; 548B.1)")
+
+    def test_ascending_page_range_untouched(self):
+        assert "133-1397" in ocr.fix_text("see pp. 133-1397 of the index")
+
+
+class TestGreekCapitalInLatinWord:
+    def test_spanish_words(self):
+        out = ocr.fix_text("Εtolia, Λócride y Δelfos según Βechtel")
+        assert out == "Etolia, Lócride y Delfos según Bechtel"
+
+    def test_greek_words_untouched(self):
+        assert "Ἀθηνᾶς Δία" in ocr.fix_text("Ἀθηνᾶς Δία")
+
+    def test_word_split_by_end_of_line_hyphen(self):
+        assert "Pero la analogía" in ocr.fix_text("Ρe-\nro la analogía")

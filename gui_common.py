@@ -43,11 +43,13 @@ if os.name == "nt":
         pass
 
 import customtkinter as ctk
+import pdfplumber
 import pytesseract
 from pdf2image import convert_from_path
 
 import config
 import i18n
+import text_layer
 from ocr_postprocess import fix_text
 
 def fit_window_to_screen(window: ctk.CTk, width: int, height: int) -> None:
@@ -202,18 +204,27 @@ class ConversionEngine:
             output_dir.mkdir(parents=True, exist_ok=True)
 
             convert_kwargs = {"dpi": dpi, "poppler_path": config.POPPLER_PATH}
+            with pdfplumber.open(str(pdf_path)) as pdf:
+                total_pages = len(pdf.pages)
             if start_page and end_page:
-                convert_kwargs["first_page"] = start_page
-                convert_kwargs["last_page"] = end_page
-                first_page = start_page
+                first_page, last_page = start_page, min(end_page, total_pages)
                 suffix = f"_pp{start_page}-{end_page}"
             else:
-                first_page = 1
+                first_page, last_page = 1, total_pages
                 suffix = ""
 
-            self.queue.put(("log", i18n._("log_converting_to_images")))
-            pages = convert_from_path(str(pdf_path), **convert_kwargs)
+            # Digital PDFs: use the text layer where it is usable; OCR the rest.
+            text_pages = text_layer.extract_pages(str(pdf_path), first_page, last_page)
             self._check_cancelled()
+
+            # Tables need all page images up front; otherwise rasterize page by page.
+            pages: list = []
+            if with_tables:
+                self.queue.put(("log", i18n._("log_converting_to_images")))
+                pages = convert_from_path(
+                    str(pdf_path), first_page=first_page, last_page=last_page, **convert_kwargs
+                )
+                self._check_cancelled()
 
             tables_by_page: dict[int, list[str]] = {}
             insert_tables = None
@@ -240,16 +251,22 @@ class ConversionEngine:
 
                 insert_tables = insert_tables_into_text
 
-            self.queue.put(("log", i18n._("log_processing_ocr", n=len(pages))))
+            n_pages = last_page - first_page + 1
+            self.queue.put(("log", i18n._("log_processing_ocr", n=n_pages)))
             full_text = ""
-            for i, page in enumerate(pages):
+            for i, page_number in enumerate(range(first_page, last_page + 1)):
                 self._check_cancelled()
-                page_number = first_page + i
-                self.queue.put(("progress", i + 1, len(pages)))
+                self.queue.put(("progress", i + 1, n_pages))
                 self.queue.put(("log", i18n._("log_page_processing", n=page_number)))
 
-                raw_text = pytesseract.image_to_string(page, lang=lang, config="--psm 3")
-                corrected_text = fix_text(raw_text, verbose=False)
+                if page_number in text_pages:
+                    corrected_text = text_pages[page_number]
+                else:
+                    page = pages[i] if pages else convert_from_path(
+                        str(pdf_path), first_page=page_number, last_page=page_number, **convert_kwargs
+                    )[0]
+                    raw_text = pytesseract.image_to_string(page, lang=lang, config="--psm 3")
+                    corrected_text = fix_text(raw_text, verbose=False)
 
                 if with_tables and page_number in tables_by_page and insert_tables:
                     corrected_text = insert_tables(

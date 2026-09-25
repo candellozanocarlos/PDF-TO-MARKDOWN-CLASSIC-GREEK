@@ -190,6 +190,8 @@ Ver todas las opciones:
 python pdf_to_markdown.py --help
 ```
 
+**PDF digitales:** si una página ya tiene una capa de texto utilizable, se lee directamente en lugar de pasarla por OCR (conserva el griego breve, los subpuntos, los macrones, los corchetes y los «?» de las fechas). Solo se aplica OCR a las páginas escaneadas o con una capa de texto defectuosa (p. ej., fuentes griegas antiguas sin correspondencia Unicode). Para forzar el OCR en todas las páginas, usa `--force-ocr`. Las páginas se rasterizan de una en una, así que los libros largos no necesitan dividirse por tramos.
+
 El `.md` resultante se guarda en la carpeta indicada con `-o` y se abre automáticamente al terminar (usa `--no-open` para desactivar esto; en Linux/macOS se abre con `xdg-open`/`open` si están disponibles).
 
 ### Configuración de idiomas
