@@ -105,7 +105,48 @@ CHAR_REPLACEMENTS = {
 # 2. GENERAL RULES (whole text)
 # ---------------------------------------------------------------------------
 
+def _fix_question_mark_in_date_range(m: re.Match) -> str:
+    """'500-4507' → '500-450?' (Tesseract reads the '?' of uncertain dates as '7').
+    Only for descending BCE-style ranges, so page ranges like '133-1397' are left alone."""
+    start, end = m.group(1), m.group(2)
+    return f"{start}-{end}?" if int(end) <= int(start) else m.group(0)
+
+
+# Greek capitals that Tesseract (grc model) outputs in place of the Latin
+# capital that starts a Latin-script word: 'Εtolia', 'Βechtel', 'Δelfos'.
+_GREEK_CAP_TO_LATIN = {
+    "Α": "A", "Β": "B", "Ε": "E", "Ζ": "Z", "Η": "H", "Ι": "I", "Κ": "K",
+    "Μ": "M", "Ν": "N", "Ο": "O", "Ρ": "P", "Τ": "T", "Υ": "Y", "Χ": "X",
+    "Σ": "S", "Δ": "D", "Λ": "L", "Γ": "G", "Φ": "F",
+}
+_LATIN_LOWER = "a-zß-öø-ÿœ"
+
+
+def _fix_greek_capital_in_latin_word(m: re.Match) -> str:
+    return _GREEK_CAP_TO_LATIN[m.group(1)] + m.group(2)
+
+
+_GREEK_CAP_IN_LATIN_WORD_RE = re.compile(
+    rf"(?<![\wͰ-Ͽἀ-῿])([{''.join(_GREEK_CAP_TO_LATIN)}])([{_LATIN_LOWER}]{{2,}})(?![\wͰ-Ͽἀ-῿])"
+)
+
+
+def fix_greek_capitals_in_latin_words(text: str) -> str:
+    """'Εtolia', 'Τhe' → 'Etolia', 'The'. Also used on text-layer pages."""
+    return _GREEK_CAP_IN_LATIN_WORD_RE.sub(_fix_greek_capital_in_latin_word, text)
+
+
 REGEX_RULES_GENERAL = [
+
+    # --- Question marks of uncertain dates read as '7' ---
+
+    (re.compile(r"(?<!\d)(\d{3})-(\d{3})7(?!\d)"),
+     _fix_question_mark_in_date_range,
+     "Uncertain date '500-4507' → '500-450?' (only descending ranges)"),
+
+    (re.compile(r"\b(ca\. \d{2}0)7(?!\d)"),
+     r"\1?",
+     "Uncertain date 'ca. 4007' → 'ca. 400?'"),
 
 
     # --- Pagination and header artifacts ---
@@ -250,6 +291,13 @@ REGEX_RULES_GENERAL = [
     (re.compile(r'/"([a-zA-Zɑ-ɿʀ-ʿ])'),
      r"/ʰ\1",
      '/" → /ʰ (IPA aspirated)'),
+
+    # --- Greek capital + Latin lowercase word (Latin word misread by grc) ---
+    # Kept last: it must see words already rejoined across end-of-line hyphens.
+
+    (_GREEK_CAP_IN_LATIN_WORD_RE,
+     _fix_greek_capital_in_latin_word,
+     "'Εtolia', 'Βechtel', 'Δelfos' → 'Etolia', 'Bechtel', 'Delfos'"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -264,6 +312,11 @@ REGEX_RULES_GENERAL = [
 # ---------------------------------------------------------------------------
 
 REGEX_RULES_CORPUS_SPECIFIC = [
+    # Siglum of the Dodona corpus (Dakaris, Vokotopoulou, Christidis 2013)
+    (re.compile(r"(?<![\wͰ-Ͽ])(?:XEA|ΧΕΑ|XEΔ|XEΛ)(?![\wͰ-Ͽ])"),
+     "ΧΕΔ",
+     "Dodona corpus siglum XEA/ΧΕΑ → ΧΕΔ"),
+
     # Automatically detected by ocr_ml_detector.py
     (re.compile(r"Ilioaı", re.IGNORECASE | re.UNICODE),
      "llioaı",

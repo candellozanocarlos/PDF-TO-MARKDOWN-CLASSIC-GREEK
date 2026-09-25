@@ -25,6 +25,11 @@ scanned):
 
     python pdf_to_markdown.py "article.pdf" -o ./markdown --tables
 
+Digital PDFs: by default, pages that already contain a usable text layer
+are read directly (much more accurate than OCR for Greek); only scanned
+pages, or pages with a broken text layer, are OCR'd. Use --force-ocr to
+OCR every page.
+
 The resulting .md is saved in the output folder and opened automatically
 on Windows (use --no-open to disable this).
 """
@@ -36,10 +41,12 @@ import os
 import sys
 from pathlib import Path
 
+import pdfplumber
 import pytesseract
 from pdf2image import convert_from_path
 
 import config  # noqa: F401  (applies TESSERACT_CMD on import)
+import text_layer
 from ocr_postprocess import fix_text
 
 
@@ -88,6 +95,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Resolution (dpi) used to convert the PDF into images. Default: 300.",
     )
     parser.add_argument(
+        "--force-ocr", action="store_true",
+        help="OCR every page, even if the PDF has a usable text layer.",
+    )
+    parser.add_argument(
         "--no-open", action="store_true",
         help="Do not automatically open the resulting .md file when done.",
     )
@@ -132,49 +143,63 @@ def main() -> None:
 
     suffix = ""
     convert_kwargs = {"dpi": args.dpi, "poppler_path": config.POPPLER_PATH}
+    with pdfplumber.open(str(args.pdf)) as pdf:
+        total_pages = len(pdf.pages)
     if args.pages:
-        start, end = args.pages
-        convert_kwargs["first_page"] = start
-        convert_kwargs["last_page"] = end
-        suffix = f"_pp{start}-{end}"
-        first_page = start
+        first_page, last_page = args.pages[0], min(args.pages[1], total_pages)
+        suffix = f"_pp{args.pages[0]}-{args.pages[1]}"
     else:
-        first_page = 1
+        first_page, last_page = 1, total_pages
 
     tables_suffix = "_tables" if args.tables else ""
     output_path = args.output_dir / f"{args.pdf.stem}{suffix}{tables_suffix}.md"
 
-    print("Converting PDF to images...")
-    try:
-        pages = convert_from_path(str(args.pdf), **convert_kwargs)
-    except Exception as exc:
-        print(
-            f"[error] Failed to convert the PDF to images. Check that Poppler "
-            f"is installed and accessible (see config.py). Detail: {exc}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    text_pages: dict[int, str] = {}
+    if not args.force_ocr:
+        text_pages = text_layer.extract_pages(str(args.pdf), first_page, last_page)
+        print(f"Text layer used for {len(text_pages)} of {last_page - first_page + 1} page(s).")
 
+    def rasterize(first: int, last: int) -> list:
+        try:
+            return convert_from_path(str(args.pdf), first_page=first, last_page=last, **convert_kwargs)
+        except Exception as exc:
+            print(
+                f"[error] Failed to convert the PDF to images. Check that Poppler "
+                f"is installed and accessible (see config.py). Detail: {exc}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    # Tables need every page image up front; otherwise pages are rasterized
+    # one at a time, only when OCR is actually required (keeps RAM flat on big books).
+    images: dict[int, object] = {}
     tables_by_page: dict[int, list[str]] = {}
     if args.tables:
         from pdf_table_extractor import extract_tables, detect_pdf_type, insert_tables_into_text
 
+        print("Converting PDF to images...")
+        all_images = rasterize(first_page, last_page)
+        images = {first_page + i: img for i, img in enumerate(all_images)}
         print("Extracting tables...")
         pdf_type = detect_pdf_type(str(args.pdf))
         tables_by_page = extract_tables(
-            str(args.pdf), pdf_type=pdf_type, images=pages, lang=args.lang,
+            str(args.pdf), pdf_type=pdf_type, images=all_images, lang=args.lang,
             apply_postprocessing=True,
         )
 
         insert_tables = insert_tables_into_text
 
-    print(f"Processing {len(pages)} page(s)...")
+    print(f"Processing {last_page - first_page + 1} page(s)...")
     full_text = ""
-    for i, page in enumerate(pages):
-        page_number = first_page + i
-        print(f"  Page {page_number}...")
-        raw_text = pytesseract.image_to_string(page, lang=args.lang, config="--psm 3")
-        corrected_text = fix_text(raw_text, verbose=not args.quiet)
+    for page_number in range(first_page, last_page + 1):
+        if page_number in text_pages:
+            print(f"  Page {page_number} (text layer)...")
+            corrected_text = text_pages[page_number]
+        else:
+            print(f"  Page {page_number} (OCR)...")
+            page = images[page_number] if page_number in images else rasterize(page_number, page_number)[0]
+            raw_text = pytesseract.image_to_string(page, lang=args.lang, config="--psm 3")
+            corrected_text = fix_text(raw_text, verbose=not args.quiet)
         if args.tables and page_number in tables_by_page:
             corrected_text = insert_tables(
                 corrected_text, tables_by_page[page_number]
