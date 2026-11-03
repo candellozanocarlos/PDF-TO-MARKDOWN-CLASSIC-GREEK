@@ -6,7 +6,6 @@ Homebrew/MacPorts fallback directories used on macOS, and the winget
 fallback directories used on Windows.
 """
 
-from pathlib import Path
 
 import config
 

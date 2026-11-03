@@ -1,0 +1,973 @@
+[
+ {
+  "id": "CS000",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "(?<![\\wͰ-Ͽ])(?:XEA|ΧΕΑ|XEΔ|XEΛ)(?![\\wͰ-Ͽ])",
+  "replacement": "ΧΕΔ",
+  "description": "Dodona corpus siglum XEA/ΧΕΑ → ΧΕΔ",
+  "line": 324,
+  "commit": "fa62ff3",
+  "source": "Usa la capa de texto de los PDF digitales y corrige errores sistematicos del OCR",
+  "flags": [
+   "wildcard-overwrite: the match consumes an arbitrary character and the replacement is fixed"
+  ]
+ },
+ {
+  "id": "CS001",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "Ilioaı",
+  "replacement": "llioaı",
+  "description": "Il→ll at word start (Ileno→lleno, Ilama→llama)",
+  "line": 329,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "CS002",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "acentuaci6n",
+  "replacement": "acentuación",
+  "description": "Spanish ci6n→ción (noun ending; text being corrected is Spanish)",
+  "line": 335,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "CS003",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "absorci6n",
+  "replacement": "absorción",
+  "description": "Spanish ci6n→ción (noun ending; text being corrected is Spanish)",
+  "line": 341,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "CS004",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "pronunciaci6n",
+  "replacement": "pronunciación",
+  "description": "Spanish ci6n→ción (noun ending; text being corrected is Spanish)",
+  "line": 347,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "CS005",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "‘espafiol’",
+  "replacement": "‘español’",
+  "description": "Spanish espafiol→español",
+  "line": 353,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "CS006",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "formulaci6n",
+  "replacement": "formulación",
+  "description": "Spanish ci6n→ción (noun ending; text being corrected is Spanish)",
+  "line": 359,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "CS007",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "relaci6n",
+  "replacement": "relación",
+  "description": "Spanish ci6n→ción (noun ending; text being corrected is Spanish)",
+  "line": 365,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "CS008",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "MNEMOSYNE\\s*\\(22h\\)\\s*1526\\s*,?\\s*4\\.17-41a0",
+  "replacement": "MNEMOSYNE (2021) 1-26",
+  "description": "Brill footer: (22h) 1526, 4.17-41a0 → (2021) 1-26",
+  "line": 373,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": []
+ },
+ {
+  "id": "CS009",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bomnioaded\\b",
+  "replacement": "Downloaded",
+  "description": "omnioaded → Downloaded (Brill OCR artifact)",
+  "line": 377,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": []
+ },
+ {
+  "id": "CS010",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "omnioaded\\s+from\\s+ΒΗ\\s+com(?=\\d)",
+  "replacement": "Downloaded from Brill.com",
+  "description": "'omnioaded from ΒΗ com' → 'Downloaded from Brill.com'",
+  "line": 381,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": []
+ },
+ {
+  "id": "CS011",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bjed\\s+from\\s+Brill\\.com",
+  "replacement": "Downloaded from Brill.com",
+  "description": "Truncated 'jed from Brill.com' → 'Downloaded from Brill.com'",
+  "line": 385,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": []
+ },
+ {
+  "id": "CS012",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\[ΓΟ\\b",
+  "replacement": "LOD",
+  "description": "[ΓΟ → LOD (Les lamelles oraculaires de Dodone, abbreviation)",
+  "line": 392,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": []
+ },
+ {
+  "id": "CS013",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\[ΟΡ\\b",
+  "replacement": "LOD",
+  "description": "[ΟΡ → LOD (LOD abbreviation OCR error)",
+  "line": 396,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": []
+ },
+ {
+  "id": "CS014",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bὕπο\\s+liste\\b",
+  "replacement": "Une liste",
+  "description": "ὕπο liste → Une liste (French 'Une' OCR'd as Greek)",
+  "line": 402,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": []
+ },
+ {
+  "id": "CS015",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bὃ\\s+(?=\\d)",
+  "replacement": "§ ",
+  "description": "ὃ before digit → § (section sign OCR error in Brill PDFs)",
+  "line": 410,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": []
+ },
+ {
+  "id": "CS016",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bhiAdov\\b",
+  "replacement": "hιλάο̄ν",
+  "description": "hiAdov → hιλάο̄ν (L2 diplomatic text, epigraphic form of ἱλάων)",
+  "line": 421,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string"
+  ]
+ },
+ {
+  "id": "CS017",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "ht\\\\aov\\s+Cabanes",
+  "replacement": "hίλαον Cabanes",
+  "description": "ht\\aov Cabanes → hίλαον Cabanes (apparatus criticus)",
+  "line": 426,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string"
+  ]
+ },
+ {
+  "id": "CS018",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "hlAao\\(ç\\)\\s+Lhôte",
+  "replacement": "hίλαο⟨ς⟩ Lhôte",
+  "description": "hlAao(ç) Lhôte → hίλαο⟨ς⟩ Lhôte (apparatus criticus)",
+  "line": 431,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string"
+  ]
+ },
+ {
+  "id": "CS019",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\[λα\\]ος A",
+  "replacement": "[ἵλα]ος A",
+  "description": "[λα]ος A → [ἵλα]ος A (ἵ lost in OCR)",
+  "line": 436,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string"
+  ]
+ },
+ {
+  "id": "CS020",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\[lé\\s+\\(sic\\)\\s+ὁ\\]",
+  "replacement": "[ἰε̄̀ (sic) ο̄̓]",
+  "description": "[lé (sic) ὁ] → [ἰε̄̀ (sic) ο̄̓] (apparatus criticus v.3, Lhôte)",
+  "line": 441,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string"
+  ]
+ },
+ {
+  "id": "CS021",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "lédlédièD",
+  "replacement": "ἰὲ ὦ ἰὲ ὦ ἰὲ D",
+  "description": "lédlédièD → ἰὲ ὦ ἰὲ ὦ ἰὲ D (apparatus criticus, Dion reading)",
+  "line": 446,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "CS022",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "4\\.\\s*&\\s*\\[uäç\\]\\s+Cabanes,\\s+d\\[pé\\]\\s+Lhôte",
+  "replacement": "4. ἁ[μᾶς] Cabanes, ἁ[μέ] Lhôte",
+  "description": "4.&[uäç] Cabanes, d[pé] Lhôte → 4. ἁ[μᾶς] Cabanes, ἁ[μέ] Lhôte",
+  "line": 452,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string"
+  ]
+ },
+ {
+  "id": "CS023",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "hpuäçEPD",
+  "replacement": "ἡμᾶς E P D",
+  "description": "hpuäçEPD → ἡμᾶς E P D (apparatus criticus, E P D reading)",
+  "line": 457,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "CS024",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "Βα\\s+pavris",
+  "replacement": "hα μάντις",
+  "description": "Βα pavris → hα μάντις (L1 l.3, title of the Dodona prophetess)",
+  "line": 462,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string"
+  ]
+ },
+ {
+  "id": "CS025",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "FavaË\\s+Héponches",
+  "replacement": "ϝάναξ Hε̄́ρακλες",
+  "description": "FavaË Héponches → ϝάναξ Hε̄́ρακλες (CEG 396.3, Metapontum)",
+  "line": 467,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string"
+  ]
+ },
+ {
+  "id": "CS026",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bdyaodv\\b",
+  "replacement": "ἀγαθάν",
+  "description": "dyaodv → ἀγαθάν (CEG 396.3, Metapontum)",
+  "line": 472,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": []
+ },
+ {
+  "id": "CS027",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "=\\s*CÉ\\.XIL6\\.414b-cE\\.?",
+  "replacement": "Cf. Σ Il. 6.414b-c E.",
+  "description": "= CÉ.XIL6.414b-cE. → Cf. Σ Il. 6.414b-c E. (scholion reference, fn.68)",
+  "line": 477,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string"
+  ]
+ },
+ {
+  "id": "CS028",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "Εἰ\\s+Ἀλχίμου",
+  "replacement": "Cf. Ἀλκίμου",
+  "description": "Εἰ Ἀλχίμου → Cf. Ἀλκίμου (fn.71: Εἰ=Cf., χ→κ)",
+  "line": 482,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string"
+  ]
+ },
+ {
+  "id": "CS029",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bTodôv\\b",
+  "replacement": "ποδο̃ν",
+  "description": "Todôv → ποδο̃ν (fn.71, IG 9.12.4 874.3)",
+  "line": 487,
+  "commit": "e35d45b",
+  "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+  "flags": []
+ },
+ {
+  "id": "CS030",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\br\\u00e9glement\\b",
+  "replacement": "règlement",
+  "description": "réglement → règlement (French è misread as é)",
+  "line": 499,
+  "commit": "4e3c6fd",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": []
+ },
+ {
+  "id": "CS031",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bdeuxi\\u00e9me\\b",
+  "replacement": "deuxième",
+  "description": "deuxiéme → deuxième (French è misread as é)",
+  "line": 503,
+  "commit": "4e3c6fd",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": []
+ },
+ {
+  "id": "CS032",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bci-apr\\u00e9s\\b",
+  "replacement": "ci-après",
+  "description": "ci-aprés → ci-après (French è misread as é)",
+  "line": 507,
+  "commit": "4e3c6fd",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": []
+ },
+ {
+  "id": "CS033",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bderni\\u00e9re\\b",
+  "replacement": "dernière",
+  "description": "derniére → dernière (French è misread as é)",
+  "line": 511,
+  "commit": "4e3c6fd",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": []
+ },
+ {
+  "id": "CS034",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bparenth\\u00e9ses\\b",
+  "replacement": "parenthèses",
+  "description": "parenthéses → parenthèses (French è misread as é)",
+  "line": 515,
+  "commit": "4e3c6fd",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": []
+ },
+ {
+  "id": "CS035",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bcompl\\u00e9te\\b",
+  "replacement": "complète",
+  "description": "compléte → complète (French è misread as é)",
+  "line": 519,
+  "commit": "4e3c6fd",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": []
+ },
+ {
+  "id": "CS036",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bAth\\u00e9nes\\b",
+  "replacement": "Athènes",
+  "description": "Athénes → Athènes (French è misread as é)",
+  "line": 523,
+  "commit": "4e3c6fd",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": []
+ },
+ {
+  "id": "CS037",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bsi\\u00e9cle\\b",
+  "replacement": "siècle",
+  "description": "siécle → siècle (French è misread as é)",
+  "line": 527,
+  "commit": "4e3c6fd",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": []
+ },
+ {
+  "id": "CS038",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bpr\\u00e9s\\b(?=\\s+(?:de|du))",
+  "replacement": "près",
+  "description": "prés → près (French è misread as é; only before 'de'/'du', to avoid touching the real word 'prés', meadows)",
+  "line": 531,
+  "commit": "4e3c6fd",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": []
+ },
+ {
+  "id": "CS039",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bpres\\b(?=\\s+(?:de|du))",
+  "replacement": "près",
+  "description": "pres → près (accent dropped entirely by OCR; only before 'de'/'du', to avoid touching unrelated words)",
+  "line": 536,
+  "commit": "4e3c6fd",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": []
+ },
+ {
+  "id": "CS040",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\btr\\u00e9s\\b",
+  "replacement": "très",
+  "description": "trés → très (French è misread as é)",
+  "line": 541,
+  "commit": "4e3c6fd",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": []
+ },
+ {
+  "id": "CS041",
+  "list": "REGEX_RULES_CORPUS_SPECIFIC",
+  "pattern": "\\bLh\\u00e9te\\b",
+  "replacement": "Lhôte",
+  "description": "Lhéte → Lhôte (editor's surname, é/ô OCR confusion)",
+  "line": 546,
+  "commit": "4e3c6fd",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": []
+ },
+ {
+  "id": "DS000",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "AAλοιρ",
+  "replacement": "ΑΑλοιρ",
+  "description": "Mixed Greek+Latin script: 'A'→'Α'",
+  "line": 573,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS001",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "ΙN",
+  "replacement": "ΙΝ",
+  "description": "Mixed Greek+Latin script: 'N'→'Ν'",
+  "line": 577,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS002",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "TΗE",
+  "replacement": "ΤΗΕ",
+  "description": "Mixed Greek+Latin script: 'T'→'Τ' 'E'→'Ε'",
+  "line": 581,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS003",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "PöAoμαι",
+  "replacement": "ΡöΑομαι",
+  "description": "Mixed Greek+Latin script: 'P'→'Ρ' 'A'→'Α' 'o'→'ο'",
+  "line": 585,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS004",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "NOΝΟΥΣ",
+  "replacement": "ΝΟΝΟΥΣ",
+  "description": "Mixed Greek+Latin script: 'N'→'Ν' 'O'→'Ο'",
+  "line": 589,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS005",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "Ηellenistic",
+  "replacement": "Ηellenιstιc",
+  "description": "Mixed Greek+Latin script: 'i'→'ι'",
+  "line": 593,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS006",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "önnoσίων",
+  "replacement": "önnοσίων",
+  "description": "Mixed Greek+Latin script: 'o'→'ο'",
+  "line": 598,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS007",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "ἐξetvat",
+  "replacement": "ἐξetνat",
+  "description": "Mixed Greek+Latin script: 'v'→'ν'",
+  "line": 603,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS008",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "xeoάσθο",
+  "replacement": "xeοάσθο",
+  "description": "Mixed Greek+Latin script: 'o'→'ο'",
+  "line": 608,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS009",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "duyaδεύαντι",
+  "replacement": "dυyaδεύαντι",
+  "description": "Mixed Greek+Latin script: 'u'→'υ'",
+  "line": 613,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS010",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "Develἢ",
+  "replacement": "Deνelἢ",
+  "description": "Mixed Greek+Latin script: 'v'→'ν'",
+  "line": 618,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS011",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "SUMMARΥ",
+  "replacement": "SUΜΜΑRΥ",
+  "description": "Mixed Greek+Latin script: 'M'→'Μ' 'A'→'Α'",
+  "line": 623,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS012",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "Agteptρίαν",
+  "replacement": "Αgteρtρίαν",
+  "description": "Mixed Greek+Latin script: 'A'→'Α' 'p'→'ρ'",
+  "line": 628,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS013",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "φαAvgöv",
+  "replacement": "φαΑνgöν",
+  "description": "Mixed Greek+Latin script: 'A'→'Α' 'v'→'ν'",
+  "line": 633,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS014",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "XQEOTEQκαὶ",
+  "replacement": "ΧQΕΟΤΕQκαὶ",
+  "description": "Mixed Greek+Latin script: 'X'→'Χ' 'E'→'Ε' 'O'→'Ο' 'T'→'Τ'",
+  "line": 638,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS015",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "Zußagiται",
+  "replacement": "Ζυßagιται",
+  "description": "Mixed Greek+Latin script: 'Z'→'Ζ' 'u'→'υ' 'i'→'ι'",
+  "line": 643,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS016",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "Εéveoc",
+  "replacement": "Εéνeοc",
+  "description": "Mixed Greek+Latin script: 'v'→'ν' 'o'→'ο'",
+  "line": 648,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS017",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "SENSΕ",
+  "replacement": "SΕΝSΕ",
+  "description": "Mixed Greek+Latin script: 'E'→'Ε' 'N'→'Ν'",
+  "line": 653,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS018",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "BRΟAD",
+  "replacement": "ΒRΟΑD",
+  "description": "Mixed Greek+Latin script: 'B'→'Β' 'A'→'Α'",
+  "line": 658,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS019",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "Ηesychios",
+  "replacement": "Ηesychιοs",
+  "description": "Mixed Greek+Latin script: 'i'→'ι' 'o'→'ο'",
+  "line": 663,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS020",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "BeiAoμαι",
+  "replacement": "ΒeιΑομαι",
+  "description": "Mixed Greek+Latin script: 'B'→'Β' 'i'→'ι' 'A'→'Α' 'o'→'ο'",
+  "line": 668,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS021",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "CΥPRΙΟT",
+  "replacement": "CΥΡRΙΟΤ",
+  "description": "Mixed Greek+Latin script: 'P'→'Ρ' 'T'→'Τ'",
+  "line": 673,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS022",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "CΥPRIΟT",
+  "replacement": "CΥΡRΙΟΤ",
+  "description": "Mixed Greek+Latin script: 'P'→'Ρ' 'I'→'Ι' 'T'→'Τ'",
+  "line": 678,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS023",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "MYCENAΕAN",
+  "replacement": "ΜYCΕΝΑΕΑΝ",
+  "description": "Mixed Greek+Latin script: 'M'→'Μ' 'E'→'Ε' 'N'→'Ν' 'A'→'Α'",
+  "line": 683,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS024",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "Ηomeric",
+  "replacement": "Ηοmerιc",
+  "description": "Mixed Greek+Latin script: 'o'→'ο' 'i'→'ι'",
+  "line": 688,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS025",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "Ιonic",
+  "replacement": "Ιοnιc",
+  "description": "Mixed Greek+Latin script: 'o'→'ο' 'i'→'ι'",
+  "line": 693,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS026",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "Εuboean",
+  "replacement": "Ευbοean",
+  "description": "Mixed Greek+Latin script: 'u'→'υ' 'o'→'ο'",
+  "line": 698,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS027",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "ovvavφότεροι",
+  "replacement": "ovvaνφότεροι",
+  "description": "Latin v→ν (nu) adjacent to Greek",
+  "line": 703,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS028",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "κἐλευλύvıa",
+  "replacement": "κἐλευλύνıa",
+  "description": "Latin v→ν (nu) adjacent to Greek",
+  "line": 708,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS029",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "ivbooßievεἰ",
+  "replacement": "ivbooßieνεἰ",
+  "description": "Latin v→ν (nu) adjacent to Greek",
+  "line": 713,
+  "commit": "082ac67",
+  "source": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
+  "flags": [
+   "mixed-script-replacement: Greek and Latin letters in the same output string",
+   "literal: matches a single fixed string (document-specific, cannot generalise)"
+  ]
+ },
+ {
+  "id": "DS030",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "Dodone,(?!3)\\S",
+  "replacement": "Dodone,3",
+  "description": "Dodone,<garbled symbol> → Dodone,3 (superscript footnote 3; the exact wrong symbol varies between OCR runs)",
+  "line": 726,
+  "commit": "3051d27",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": [
+   "wildcard-overwrite: the match consumes an arbitrary character and the replacement is fixed"
+  ]
+ },
+ {
+  "id": "DS031",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "religieuses\\.(?!4)\\S",
+  "replacement": "religieuses.4",
+  "description": "religieuses.<garbled symbol> → religieuses.4 (superscript footnote 4)",
+  "line": 731,
+  "commit": "3051d27",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": [
+   "wildcard-overwrite: the match consumes an arbitrary character and the replacement is fixed"
+  ]
+ },
+ {
+  "id": "DS032",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "pierre\\.(?!5)\\S",
+  "replacement": "pierre.5",
+  "description": "pierre.<garbled symbol> → pierre.5 (superscript footnote 5)",
+  "line": 735,
+  "commit": "3051d27",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": [
+   "wildcard-overwrite: the match consumes an arbitrary character and the replacement is fixed"
+  ]
+ },
+ {
+  "id": "DS033",
+  "list": "REGEX_RULES_CORPUS_DISABLED",
+  "pattern": "Carbon\\.(?!7)\\S",
+  "replacement": "Carbon.7",
+  "description": "Carbon.<garbled symbol> → Carbon.7 (superscript footnote 7)",
+  "line": 739,
+  "commit": "3051d27",
+  "source": "Alonso Deniz 2022, p. 2",
+  "flags": [
+   "wildcard-overwrite: the match consumes an arbitrary character and the replacement is fixed"
+  ]
+ }
+]

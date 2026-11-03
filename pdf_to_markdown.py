@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -46,6 +47,7 @@ import pytesseract
 from pdf2image import convert_from_path
 
 import config  # noqa: F401  (applies TESSERACT_CMD on import)
+import ocr_postprocess
 import text_layer
 from ocr_postprocess import fix_text
 
@@ -99,6 +101,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="OCR every page, even if the PDF has a usable text layer.",
     )
     parser.add_argument(
+        "--corpus-rules", action="store_true",
+        help="Also apply the corrections learned from the author's own corpus "
+             "(Dodona lamellae and related literature). Off by default; can also "
+             "be enabled with the environment variable PDF2MD_CORPUS_RULES=1.",
+    )
+    parser.add_argument(
         "--no-open", action="store_true",
         help="Do not automatically open the resulting .md file when done.",
     )
@@ -115,15 +123,18 @@ def open_file(path: Path) -> None:
         if os.name == "nt":
             os.startfile(path)  # type: ignore[attr-defined]
         elif sys.platform == "darwin":
-            os.system(f'open "{path}"')
+            subprocess.run(["open", str(path)], check=False)
         else:
-            os.system(f'xdg-open "{path}"')
+            subprocess.run(["xdg-open", str(path)], check=False)
     except Exception as exc:  # Not critical: the file is already saved.
         print(f"[warning] Could not open the file automatically: {exc}")
 
 
 def main() -> None:
     args = build_parser().parse_args()
+    if args.corpus_rules:
+        # Read by every fix_text() call, including the table cells.
+        os.environ[ocr_postprocess.CORPUS_RULES_ENV] = "1"
     requested_languages = args.lang.split("+")
     warnings = config.check_external_dependencies(languages=requested_languages)
     for warning in warnings:
@@ -146,6 +157,13 @@ def main() -> None:
     with pdfplumber.open(str(args.pdf)) as pdf:
         total_pages = len(pdf.pages)
     if args.pages:
+        if args.pages[0] > total_pages:
+            print(
+                f"[error] --pages starts at page {args.pages[0]}, but the PDF "
+                f"only has {total_pages} page(s).",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         first_page, last_page = args.pages[0], min(args.pages[1], total_pages)
         suffix = f"_pp{args.pages[0]}-{args.pages[1]}"
     else:

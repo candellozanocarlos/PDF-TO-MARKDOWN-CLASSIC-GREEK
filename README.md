@@ -1,6 +1,6 @@
 # PDF-TO-MARKDOWN-CLASSIC-GREEK
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21195565.svg)](https://doi.org/10.5281/zenodo.21195565)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21104622.svg)](https://doi.org/10.5281/zenodo.21104622)
 
 **[Leer esto en castellano](./README.es.md)**
 
@@ -14,7 +14,7 @@ Converts a PDF containing Classical Greek text (and/or English, French, Italian,
 
 If you use this tool in your research, please cite it as:
 
-> Candel Lozano, C. (2026). *PDF-TO-MARKDOWN-CLASSIC-GREEK: OCR-based PDF-to-Markdown conversion with automatic post-processing for Classical Greek* (v1.15) [Software]. Zenodo. https://doi.org/10.5281/zenodo.21195565
+> Candel Lozano, C. (2026). *PDF-TO-MARKDOWN-CLASSIC-GREEK: OCR-based PDF-to-Markdown conversion with automatic post-processing for Classical Greek* (v1.16) [Software]. Zenodo. https://doi.org/10.5281/zenodo.21104622
 
 In BibTeX format:
 
@@ -26,9 +26,9 @@ In BibTeX format:
                    post-processing for Classical Greek}},
   year         = 2026,
   publisher    = {Zenodo},
-  version      = {v1.15},
-  doi          = {10.5281/zenodo.21195565},
-  url          = {https://doi.org/10.5281/zenodo.21195565}
+  version      = {v1.16},
+  doi          = {10.5281/zenodo.21104622},
+  url          = {https://doi.org/10.5281/zenodo.21104622}
 }
 ```
 
@@ -64,8 +64,11 @@ PDF (original) → .md (this script) → paste/upload to Claude → summarize, t
 | `tema_calido.json` | Visual theme (amber/brown tones) for the desktop applications. |
 | `ocr_postprocess.py` | Corrects errors typical of OCR on Classical Greek and the surrounding multilingual academic text. |
 | `pdf_table_extractor.py` | Extracts tables from digital PDFs (with `pdfplumber`) or scanned PDFs (with OpenCV + Tesseract), with strict detection. |
+| `text_layer.py` | Reads the embedded text layer of digital PDFs, so that pages with real text skip OCR. |
 | `config.py` | Centralized configuration of Tesseract and Poppler paths (via environment variables), plus automatic installation via Homebrew (macOS) and winget (Windows). |
 | `tests/` | Automated `pytest` test suite (unit tests + a small end-to-end fixture). |
+| `verification/` | OCR quality measurement for polytonic Greek against manually corrected reference pages (see its own README), and the provenance of the corpus-specific rules (`corpus_rules_provenance.json`). |
+| `tools/` | Maintenance scripts: `audit_corpus_rules.py` (regenerates the rule provenance file), `fetch_ocr_issues.py` (collects OCR-correction reports filed as GitHub issues). |
 
 ## Prerequisites
 
@@ -184,6 +187,12 @@ With table extraction (automatically detects whether the PDF is digital or scann
 python pdf_to_markdown.py "article.pdf" -o ./markdown --tables
 ```
 
+Also applying the corrections learned from the author's corpus (see "About the OCR post-processor"):
+
+```bash
+python pdf_to_markdown.py "article.pdf" -o ./markdown --corpus-rules
+```
+
 See all options:
 
 ```bash
@@ -280,19 +289,22 @@ If a document has no real tables, it is normal and expected for the application 
 
 ## How it works
 
-1. **Conversion to images**: each page of the PDF (or the given range) is converted into an image at 300 dpi with `pdf2image`/Poppler.
-2. **Page-by-page OCR**: Tesseract extracts the text from each image.
+1. **Text layer first**: for digital PDFs, `text_layer.py` reads the embedded text of each page directly (more accurate than OCR for Greek). Pages without a usable text layer (scanned pages, or old Greek fonts without a Unicode mapping) go on to OCR. `--force-ocr` OCRs every page.
+2. **Conversion to images and OCR**: each remaining page is converted into an image at 300 dpi with `pdf2image`/Poppler, and Tesseract extracts its text.
 3. **Table extraction** (optional, with `--tables`): `pdf_table_extractor.py` detects whether the PDF is digital or scanned and extracts the tables associated with a caption ("Tabla 1", "Table 2"...), inserting them next to their caption in the final Markdown.
-4. **Error correction**: `ocr_postprocess.fix_text()` cleans up errors typical of OCR on Classical Greek and the surrounding academic text.
+4. **Error correction** (OCR'd pages): `ocr_postprocess.fix_text()` cleans up errors typical of OCR on Classical Greek and the surrounding academic text.
 5. **Saving**: the corrected text of all pages is joined (with a `--- Page N ---` separator) and saved as UTF-8 `.md`.
 
 ## About the OCR post-processor
 
-`ocr_postprocess.py` splits the correction rules into three groups:
+`ocr_postprocess.py` splits the correction rules into these groups:
 
 - `REGEX_RULES_GENERAL`: generic, reusable rules (final sigma, ligatures, end-of-line hyphens, Leiden epigraphic notation...).
-- `REGEX_RULES_CORPUS_SPECIFIC`: ad hoc corrections learned from specific documents already processed (proper nouns, very specific word fragments). Applied by default. Pass `fix_text(text, include_corpus_specific=False)` to disable them when processing a document outside this corpus.
+- `REGEX_RULES_CORPUS_SPECIFIC`: ad hoc corrections learned from specific documents already processed (proper nouns, very specific word fragments). Not applied by default, since they only make sense for the author's corpus (the Dodona lamellae and the literature on them). To enable them, use `--corpus-rules` on the command line, `fix_text(text, include_corpus_specific=True)`, or set the environment variable `PDF2MD_CORPUS_RULES=1` (also honored by the desktop applications).
 - `REGEX_RULES_GREEK`: rules specific to Greek text blocks.
+- `REGEX_RULES_CORPUS_DISABLED`: corpus-specific rules withdrawn on review because they could damage other documents (replacements that still mix Greek and Latin letters, or that overwrite an arbitrary character). They are not applied and are kept only for the record.
+
+The origin of each corpus-specific rule (commit and source document) is recorded in `verification/corpus_rules_provenance.json`, regenerated with `python tools/audit_corpus_rules.py`. To evaluate a document without the rules learned from it, use `fix_text(text, corpus_specific_exclude=[...])` with rule ids or source labels from that file.
 
 ## Running the tests
 
