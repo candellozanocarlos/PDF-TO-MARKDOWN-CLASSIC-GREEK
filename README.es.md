@@ -1,6 +1,6 @@
 # PDF-TO-MARKDOWN-CLASSIC-GREEK
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21195565.svg)](https://doi.org/10.5281/zenodo.21195565)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21104622.svg)](https://doi.org/10.5281/zenodo.21104622)
 
 **[Read this in English](./README.md)**
 
@@ -14,7 +14,7 @@ Convierte un PDF con texto en griego clásico (y/o inglés, francés, italiano, 
 
 Si usas esta herramienta en tu investigación, cítala así:
 
-> Candel Lozano, C. (2026). *PDF-TO-MARKDOWN-CLASSIC-GREEK: OCR-based PDF-to-Markdown conversion with automatic post-processing for Classical Greek* (v1.15) [Software]. Zenodo. https://doi.org/10.5281/zenodo.21195565
+> Candel Lozano, C. (2026). *PDF-TO-MARKDOWN-CLASSIC-GREEK: OCR-based PDF-to-Markdown conversion with automatic post-processing for Classical Greek* (v1.16) [Software]. Zenodo. https://doi.org/10.5281/zenodo.21104622
 
 En formato BibTeX:
 
@@ -26,9 +26,9 @@ En formato BibTeX:
                    post-processing for Classical Greek}},
   year         = 2026,
   publisher    = {Zenodo},
-  version      = {v1.15},
-  doi          = {10.5281/zenodo.21195565},
-  url          = {https://doi.org/10.5281/zenodo.21195565}
+  version      = {v1.16},
+  doi          = {10.5281/zenodo.21104622},
+  url          = {https://doi.org/10.5281/zenodo.21104622}
 }
 ```
 
@@ -64,8 +64,11 @@ PDF (original) → .md (este script) → pegar/subir a Claude → resumir, tradu
 | `tema_calido.json` | Tema visual (tonos ámbar/marrón) para las aplicaciones de escritorio. |
 | `ocr_postprocess.py` | Corrige errores típicos del OCR en griego clásico y en el texto académico multilingüe que suele acompañarlo. |
 | `pdf_table_extractor.py` | Extrae tablas de PDFs digitales (con `pdfplumber`) o escaneados (con OpenCV + Tesseract), con detección estricta. |
+| `text_layer.py` | Lee la capa de texto incrustada de los PDF digitales, para que las páginas con texto real no pasen por el OCR. |
 | `config.py` | Configuración centralizada de las rutas de Tesseract y Poppler (vía variables de entorno), además de la instalación automática mediante Homebrew (macOS) y winget (Windows). |
 | `tests/` | Batería de tests automatizados con `pytest` (tests unitarios + una pequeña prueba de extremo a extremo). |
+| `verification/` | Medición de la calidad del OCR en griego politónico frente a páginas de referencia corregidas a mano (ver su propio README), y procedencia de las reglas específicas del corpus (`corpus_rules_provenance.json`). |
+| `tools/` | Scripts de mantenimiento: `audit_corpus_rules.py` (regenera el archivo de procedencia de las reglas), `fetch_ocr_issues.py` (recoge los avisos de corrección de OCR abiertos como issues de GitHub). |
 
 ## Requisitos previos
 
@@ -184,6 +187,12 @@ Con extracción de tablas (detecta automáticamente si el PDF es digital o escan
 python pdf_to_markdown.py "articulo.pdf" -o ./markdown --tables
 ```
 
+Aplicando también las correcciones aprendidas del corpus del autor (ver «Sobre el postprocesador de OCR»):
+
+```bash
+python pdf_to_markdown.py "articulo.pdf" -o ./markdown --corpus-rules
+```
+
 Ver todas las opciones:
 
 ```bash
@@ -280,19 +289,22 @@ Si un documento no tiene tablas de verdad, es normal y esperable que la aplicaci
 
 ## Cómo funciona
 
-1. **Conversión a imágenes**: cada página del PDF (o el rango indicado) se convierte en una imagen a 300 ppp con `pdf2image`/Poppler.
-2. **OCR página a página**: Tesseract extrae el texto de cada imagen.
+1. **Primero, la capa de texto**: en los PDF digitales, `text_layer.py` lee directamente el texto incrustado de cada página (más fiable que el OCR para el griego). Las páginas sin capa de texto utilizable (escaneadas, o con fuentes griegas antiguas sin correspondencia Unicode) pasan al OCR. `--force-ocr` aplica el OCR a todas las páginas.
+2. **Conversión a imágenes y OCR**: cada página restante se convierte en una imagen a 300 ppp con `pdf2image`/Poppler, y Tesseract extrae su texto.
 3. **Extracción de tablas** (opcional, con `--tables`): `pdf_table_extractor.py` detecta si el PDF es digital o escaneado y extrae las tablas asociadas a un pie ("Tabla 1", "Table 2"...), insertándolas junto a su pie en el Markdown final.
-4. **Corrección de errores**: `ocr_postprocess.fix_text()` limpia los errores típicos del OCR en griego clásico y en el texto académico circundante.
+4. **Corrección de errores** (páginas con OCR): `ocr_postprocess.fix_text()` limpia los errores típicos del OCR en griego clásico y en el texto académico circundante.
 5. **Guardado**: el texto corregido de todas las páginas se une (con un separador `--- Página N ---` o `--- Page N ---` según el idioma) y se guarda como `.md` en UTF-8.
 
 ## Sobre el postprocesador de OCR
 
-`ocr_postprocess.py` divide las reglas de corrección en tres grupos:
+`ocr_postprocess.py` divide las reglas de corrección en estos grupos:
 
 - `REGEX_RULES_GENERAL`: reglas genéricas y reutilizables (sigma final, ligaduras, guiones de fin de línea, notación epigráfica de Leiden...).
-- `REGEX_RULES_CORPUS_SPECIFIC`: correcciones puntuales aprendidas de documentos concretos ya procesados (nombres propios, fragmentos de palabra muy específicos). Se aplican por defecto. Pasa `fix_text(text, include_corpus_specific=False)` para desactivarlas si procesas un documento fuera de este corpus.
+- `REGEX_RULES_CORPUS_SPECIFIC`: correcciones puntuales aprendidas de documentos concretos ya procesados (nombres propios, fragmentos de palabra muy específicos). No se aplican por defecto, porque solo tienen sentido para el corpus del autor (las laminillas de Dodona y la bibliografía sobre ellas). Para activarlas, usa `--corpus-rules` en la línea de comandos, `fix_text(text, include_corpus_specific=True)` o la variable de entorno `PDF2MD_CORPUS_RULES=1` (que también respetan las aplicaciones de escritorio).
 - `REGEX_RULES_GREEK`: reglas específicas para bloques de texto griego.
+- `REGEX_RULES_CORPUS_DISABLED`: reglas específicas del corpus retiradas tras revisarlas porque podían estropear otros documentos (sustituciones que siguen mezclando letras griegas y latinas, o que sobrescriben un carácter cualquiera). No se aplican y se conservan solo como registro.
+
+El origen de cada regla específica del corpus (commit y documento de procedencia) consta en `verification/corpus_rules_provenance.json`, que se regenera con `python tools/audit_corpus_rules.py`. Para evaluar un documento sin las reglas aprendidas de él, usa `fix_text(text, corpus_specific_exclude=[...])` con los identificadores de regla o las etiquetas de procedencia de ese archivo.
 
 ## Ejecutar los tests
 

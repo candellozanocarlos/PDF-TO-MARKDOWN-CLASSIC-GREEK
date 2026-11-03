@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import queue
+import subprocess
 import sys
 import threading
 import traceback
@@ -114,9 +115,9 @@ def open_file(path: Path) -> None:
         if os.name == "nt":
             os.startfile(path)  # type: ignore[attr-defined]
         elif sys.platform == "darwin":
-            os.system(f'open "{path}"')
+            subprocess.run(["open", str(path)], check=False)
         else:
-            os.system(f'xdg-open "{path}"')
+            subprocess.run(["xdg-open", str(path)], check=False)
     except Exception:
         pass
 
@@ -126,9 +127,9 @@ def open_folder(path: Path) -> None:
         if os.name == "nt":
             os.startfile(path)  # type: ignore[attr-defined]
         elif sys.platform == "darwin":
-            os.system(f'open "{path}"')
+            subprocess.run(["open", str(path)], check=False)
         else:
-            os.system(f'xdg-open "{path}"')
+            subprocess.run(["xdg-open", str(path)], check=False)
     except Exception:
         pass
 

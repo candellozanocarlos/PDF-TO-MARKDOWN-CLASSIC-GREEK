@@ -49,11 +49,22 @@ class TestWordReplacements:
             "supercalifragilisticexpialidocious"
 
 
+@pytest.fixture
+def corpus_rules_on(monkeypatch):
+    """Turns the corpus-specific rules on, as the author's workflow does."""
+    monkeypatch.setenv(ocr.CORPUS_RULES_ENV, "1")
+
+
 class TestCorpusSpecificRules:
-    def test_enabled_by_default(self):
-        # Corpus-specific rules are applied by default since they were
-        # deemed safe enough for regular use; "acentuaci6n" only gets
-        # fixed by one of them.
+    def test_disabled_by_default(self):
+        # Corpus-specific rules are opt-in, since they were learned from the
+        # author's corpus; "acentuaci6n" only gets fixed by one of them.
+        assert ocr.fix_text("acentuaci6n") == "acentuaci6n"
+
+    def test_enabled_explicitly(self):
+        assert ocr.fix_text("acentuaci6n", include_corpus_specific=True) == "acentuación"
+
+    def test_enabled_by_environment_variable(self, corpus_rules_on):
         assert ocr.fix_text("acentuaci6n") == "acentuación"
 
     def test_can_be_disabled_explicitly(self):
@@ -308,6 +319,7 @@ class TestRegexRulesAlias:
         )
 
 
+@pytest.mark.usefixtures("corpus_rules_on")
 class TestAlonsoDenizPage2Fixes:
     def test_french_e_grave_misread_as_e_acute_is_corrected(self):
         cases = {
@@ -335,12 +347,14 @@ class TestAlonsoDenizPage2Fixes:
     def test_editor_surname_lhote_is_corrected(self):
         assert ocr.fix_text("proposée par E. Lhéte, avec") == "proposée par E. Lhôte, avec"
 
+    @pytest.mark.skip(reason="wildcard footnote rules moved to REGEX_RULES_CORPUS_DISABLED")
     def test_footnote_marker_symbols_are_restored_to_digits(self):
         assert ocr.fix_text("l'oracle de Dodone,?") == "l'oracle de Dodone,3"
         assert ocr.fix_text("des affaires religieuses.*") == "des affaires religieuses.4"
         assert ocr.fix_text("plusieurs inscriptions sur pierre.\u00ae") == "plusieurs inscriptions sur pierre.5"
         assert ocr.fix_text("lectures de J.-M. Carbon.\u2019") == "lectures de J.-M. Carbon.7"
 
+    @pytest.mark.skip(reason="wildcard footnote rules moved to REGEX_RULES_CORPUS_DISABLED")
     def test_footnote_marker_rule_handles_any_garbled_symbol(self):
         # Tesseract is not deterministic: the same footnote 3 marker has
         # been observed rendered as both '?' and '*' across different
@@ -353,6 +367,7 @@ class TestAlonsoDenizPage2Fixes:
         assert ocr.fix_text("l'oracle de Dodone,3") == "l'oracle de Dodone,3"
 
 
+@pytest.mark.usefixtures("corpus_rules_on")
 class TestUncertainDates:
     def test_descending_range_question_mark(self):
         assert "(ΧΕΔ 2242A.3, 500-450?)" in ocr.fix_text("(XEA 2242A.3, 500-4507)")
@@ -374,3 +389,44 @@ class TestGreekCapitalInLatinWord:
 
     def test_word_split_by_end_of_line_hyphen(self):
         assert "Pero la analogía" in ocr.fix_text("Ρe-\nro la analogía")
+
+class TestCorpusRuleProvenance:
+    """Held-out evaluation support: rules can be excluded by id or source."""
+
+    def test_provenance_matches_rules(self):
+        # Fails if a rule is added/edited without rerunning tools/audit_corpus_rules.py
+        ocr._corpus_rules_without(["CS000"])
+
+    def test_excluding_a_rule_disables_only_that_rule(self):
+        text = "XEA y acentuaci6n"
+        assert "ΧΕΔ" in ocr.fix_text(text, include_corpus_specific=True)
+        out = ocr.fix_text(text, corpus_specific_exclude=["CS000"])
+        assert "XEA" in out and "ΧΕΔ" not in out
+        assert "acentuación" in out  # other corpus rules still active
+
+    def test_excluding_by_source_label(self):
+        import json
+        entries = json.loads(ocr._PROVENANCE_PATH.read_text(encoding="utf-8"))
+        src = next(e["source"] for e in entries if e["id"] == "CS000")
+        out = ocr.fix_text("XEA", corpus_specific_exclude=[src])
+        assert out == "XEA"
+
+    def test_unknown_id_raises(self):
+        with pytest.raises(ValueError):
+            ocr.fix_text("x", corpus_specific_exclude=["CS999"])
+
+
+class TestDisabledCorpusRules:
+    def test_disabled_rules_are_not_applied(self):
+        # A footnote number other than the one baked into the old rule
+        # must be left alone.
+        assert ocr.fix_text("Carbon.8") == "Carbon.8"
+        assert ocr.fix_text("religieuses.9") == "religieuses.9"
+
+    def test_disabled_rules_do_not_overlap_active_ones(self):
+        active = {r.pattern for r, _, _ in ocr.REGEX_RULES_CORPUS_SPECIFIC}
+        disabled = {r.pattern for r, _, _ in ocr.REGEX_RULES_CORPUS_DISABLED}
+        assert active.isdisjoint(disabled)
+
+    def test_alias_excludes_disabled(self):
+        assert not any(r in ocr.REGEX_RULES for r in ocr.REGEX_RULES_CORPUS_DISABLED)

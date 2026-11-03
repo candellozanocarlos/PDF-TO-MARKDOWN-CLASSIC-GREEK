@@ -48,8 +48,22 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import pytesseract
+from PIL import Image
 
 import i18n
+
+# ---------------------------------------------------------------------------
+# Pillow decompression-bomb guard
+# ---------------------------------------------------------------------------
+# Pages with unusually large physical dimensions (foldout plates, maps,
+# oversized tables) can make pdf2image/Poppler render an image that exceeds
+# Pillow's default safety ceiling (~178.9M pixels), raising a
+# DecompressionBombError even though the source is a perfectly legitimate
+# academic PDF. Since this project only ever processes PDFs the user owns,
+# the ceiling is raised (not disabled outright, to keep some safety margin)
+# here, in the module every script imports first, so it applies regardless
+# of which script performs the actual conversion.
+Image.MAX_IMAGE_PIXELS = 300_000_000
 
 # ---------------------------------------------------------------------------
 # Configurable paths

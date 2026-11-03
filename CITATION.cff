@@ -6,14 +6,15 @@ authors:
   - family-names: "Candel Lozano"
     given-names: "Carlos"
     affiliation: "Universidad de Valladolid"
+    orcid: "https://orcid.org/0009-0005-0448-9856"
 repository-code: "https://github.com/candellozanocarlos/PDF-TO-MARKDOWN-CLASSIC-GREEK"
 license: MIT
-version: 1.15.0
-date-released: 2026-07-02
+version: 1.16.0
+date-released: 2026-11-03
 identifiers:
   - type: doi
-    value: "10.5281/zenodo.21195565"
-    description: "DOI of version v1.15 on Zenodo (English-language metadata)"
+    value: "10.5281/zenodo.21104622"
+    description: "Zenodo concept DOI (all versions; resolves to the latest)"
 keywords:
   - OCR
   - "classical Greek"

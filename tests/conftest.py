@@ -21,6 +21,13 @@ if str(REPO_ROOT) not in sys.path:
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
 
+@pytest.fixture(autouse=True)
+def _corpus_rules_env_unset(monkeypatch):
+    """Runs every test with the default (corpus-specific rules off), even
+    on a machine where PDF2MD_CORPUS_RULES=1 is set."""
+    monkeypatch.delenv("PDF2MD_CORPUS_RULES", raising=False)
+
+
 @pytest.fixture
 def sample_pdf_path() -> Path:
     """
