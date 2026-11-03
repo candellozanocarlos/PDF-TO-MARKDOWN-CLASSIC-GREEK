@@ -1,6 +1,6 @@
 # PDF-TO-MARKDOWN-CLASSIC-GREEK
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21104622.svg)](https://doi.org/10.5281/zenodo.21104622)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21104622.svg)](https://doi.org/10.5281/zenodo.23911935) 
 
 **[Read this in English](./README.md)**
 
