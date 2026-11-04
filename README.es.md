@@ -14,7 +14,7 @@ Convierte un PDF con texto en griego clásico (y/o inglés, francés, italiano, 
 
 Si usas esta herramienta en tu investigación, cítala así:
 
-> Candel Lozano, C. (2026). *PDF-TO-MARKDOWN-CLASSIC-GREEK: OCR-based PDF-to-Markdown conversion with automatic post-processing for Classical Greek* (v1.16) [Software]. Zenodo. https://doi.org/10.5281/zenodo.21104622
+> Candel Lozano, C. (2026). *PDF-TO-MARKDOWN-CLASSIC-GREEK: OCR-based PDF-to-Markdown conversion with automatic post-processing for Classical Greek* (v1.16) [Software]. Zenodo. https://doi.org/10.5281/zenodo.23911935
 
 En formato BibTeX:
 
@@ -27,8 +27,8 @@ En formato BibTeX:
   year         = 2026,
   publisher    = {Zenodo},
   version      = {v1.16},
-  doi          = {10.5281/zenodo.21104622},
-  url          = {https://doi.org/10.5281/zenodo.21104622}
+  doi          = {10.5281/zenodo.23911935},
+  url          = {https://doi.org/10.5281/zenodo.23911935}
 }
 ```
 
