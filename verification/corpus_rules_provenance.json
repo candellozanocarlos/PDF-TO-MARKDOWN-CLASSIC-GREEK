@@ -6,7 +6,7 @@
   "replacement": "ΧΕΔ",
   "description": "Dodona corpus siglum XEA/ΧΕΑ → ΧΕΔ",
   "line": 324,
-  "commit": "fa62ff3",
+  "commit": "c67d14b",
   "source": "Usa la capa de texto de los PDF digitales y corrige errores sistematicos del OCR",
   "flags": [
    "wildcard-overwrite: the match consumes an arbitrary character and the replacement is fixed"
@@ -110,7 +110,7 @@
   "replacement": "MNEMOSYNE (2021) 1-26",
   "description": "Brill footer: (22h) 1526, 4.17-41a0 → (2021) 1-26",
   "line": 373,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": []
  },
@@ -121,7 +121,7 @@
   "replacement": "Downloaded",
   "description": "omnioaded → Downloaded (Brill OCR artifact)",
   "line": 377,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": []
  },
@@ -132,7 +132,7 @@
   "replacement": "Downloaded from Brill.com",
   "description": "'omnioaded from ΒΗ com' → 'Downloaded from Brill.com'",
   "line": 381,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": []
  },
@@ -143,7 +143,7 @@
   "replacement": "Downloaded from Brill.com",
   "description": "Truncated 'jed from Brill.com' → 'Downloaded from Brill.com'",
   "line": 385,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": []
  },
@@ -154,7 +154,7 @@
   "replacement": "LOD",
   "description": "[ΓΟ → LOD (Les lamelles oraculaires de Dodone, abbreviation)",
   "line": 392,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": []
  },
@@ -165,7 +165,7 @@
   "replacement": "LOD",
   "description": "[ΟΡ → LOD (LOD abbreviation OCR error)",
   "line": 396,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": []
  },
@@ -176,7 +176,7 @@
   "replacement": "Une liste",
   "description": "ὕπο liste → Une liste (French 'Une' OCR'd as Greek)",
   "line": 402,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": []
  },
@@ -187,7 +187,7 @@
   "replacement": "§ ",
   "description": "ὃ before digit → § (section sign OCR error in Brill PDFs)",
   "line": 410,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": []
  },
@@ -198,7 +198,7 @@
   "replacement": "hιλάο̄ν",
   "description": "hiAdov → hιλάο̄ν (L2 diplomatic text, epigraphic form of ἱλάων)",
   "line": 421,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": [
    "mixed-script-replacement: Greek and Latin letters in the same output string"
@@ -211,7 +211,7 @@
   "replacement": "hίλαον Cabanes",
   "description": "ht\\aov Cabanes → hίλαον Cabanes (apparatus criticus)",
   "line": 426,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": [
    "mixed-script-replacement: Greek and Latin letters in the same output string"
@@ -224,7 +224,7 @@
   "replacement": "hίλαο⟨ς⟩ Lhôte",
   "description": "hlAao(ç) Lhôte → hίλαο⟨ς⟩ Lhôte (apparatus criticus)",
   "line": 431,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": [
    "mixed-script-replacement: Greek and Latin letters in the same output string"
@@ -237,7 +237,7 @@
   "replacement": "[ἵλα]ος A",
   "description": "[λα]ος A → [ἵλα]ος A (ἵ lost in OCR)",
   "line": 436,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": [
    "mixed-script-replacement: Greek and Latin letters in the same output string"
@@ -250,7 +250,7 @@
   "replacement": "[ἰε̄̀ (sic) ο̄̓]",
   "description": "[lé (sic) ὁ] → [ἰε̄̀ (sic) ο̄̓] (apparatus criticus v.3, Lhôte)",
   "line": 441,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": [
    "mixed-script-replacement: Greek and Latin letters in the same output string"
@@ -263,7 +263,7 @@
   "replacement": "ἰὲ ὦ ἰὲ ὦ ἰὲ D",
   "description": "lédlédièD → ἰὲ ὦ ἰὲ ὦ ἰὲ D (apparatus criticus, Dion reading)",
   "line": 446,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": [
    "mixed-script-replacement: Greek and Latin letters in the same output string",
@@ -277,7 +277,7 @@
   "replacement": "4. ἁ[μᾶς] Cabanes, ἁ[μέ] Lhôte",
   "description": "4.&[uäç] Cabanes, d[pé] Lhôte → 4. ἁ[μᾶς] Cabanes, ἁ[μέ] Lhôte",
   "line": 452,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": [
    "mixed-script-replacement: Greek and Latin letters in the same output string"
@@ -290,7 +290,7 @@
   "replacement": "ἡμᾶς E P D",
   "description": "hpuäçEPD → ἡμᾶς E P D (apparatus criticus, E P D reading)",
   "line": 457,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": [
    "mixed-script-replacement: Greek and Latin letters in the same output string",
@@ -304,7 +304,7 @@
   "replacement": "hα μάντις",
   "description": "Βα pavris → hα μάντις (L1 l.3, title of the Dodona prophetess)",
   "line": 462,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": [
    "mixed-script-replacement: Greek and Latin letters in the same output string"
@@ -317,7 +317,7 @@
   "replacement": "ϝάναξ Hε̄́ρακλες",
   "description": "FavaË Héponches → ϝάναξ Hε̄́ρακλες (CEG 396.3, Metapontum)",
   "line": 467,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": [
    "mixed-script-replacement: Greek and Latin letters in the same output string"
@@ -330,7 +330,7 @@
   "replacement": "ἀγαθάν",
   "description": "dyaodv → ἀγαθάν (CEG 396.3, Metapontum)",
   "line": 472,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": []
  },
@@ -341,7 +341,7 @@
   "replacement": "Cf. Σ Il. 6.414b-c E.",
   "description": "= CÉ.XIL6.414b-cE. → Cf. Σ Il. 6.414b-c E. (scholion reference, fn.68)",
   "line": 477,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": [
    "mixed-script-replacement: Greek and Latin letters in the same output string"
@@ -354,7 +354,7 @@
   "replacement": "Cf. Ἀλκίμου",
   "description": "Εἰ Ἀλχίμου → Cf. Ἀλκίμου (fn.71: Εἰ=Cf., χ→κ)",
   "line": 482,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": [
    "mixed-script-replacement: Greek and Latin letters in the same output string"
@@ -367,7 +367,7 @@
   "replacement": "ποδο̃ν",
   "description": "Todôv → ποδο̃ν (fn.71, IG 9.12.4 874.3)",
   "line": 487,
-  "commit": "e35d45b",
+  "commit": "5d11833",
   "source": "Brill/Mnemosyne PDFs (4 Jul 2026)",
   "flags": []
  },
@@ -378,7 +378,7 @@
   "replacement": "règlement",
   "description": "réglement → règlement (French è misread as é)",
   "line": 499,
-  "commit": "4e3c6fd",
+  "commit": "6e91b8e",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": []
  },
@@ -389,7 +389,7 @@
   "replacement": "deuxième",
   "description": "deuxiéme → deuxième (French è misread as é)",
   "line": 503,
-  "commit": "4e3c6fd",
+  "commit": "6e91b8e",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": []
  },
@@ -400,7 +400,7 @@
   "replacement": "ci-après",
   "description": "ci-aprés → ci-après (French è misread as é)",
   "line": 507,
-  "commit": "4e3c6fd",
+  "commit": "6e91b8e",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": []
  },
@@ -411,7 +411,7 @@
   "replacement": "dernière",
   "description": "derniére → dernière (French è misread as é)",
   "line": 511,
-  "commit": "4e3c6fd",
+  "commit": "6e91b8e",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": []
  },
@@ -422,7 +422,7 @@
   "replacement": "parenthèses",
   "description": "parenthéses → parenthèses (French è misread as é)",
   "line": 515,
-  "commit": "4e3c6fd",
+  "commit": "6e91b8e",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": []
  },
@@ -433,7 +433,7 @@
   "replacement": "complète",
   "description": "compléte → complète (French è misread as é)",
   "line": 519,
-  "commit": "4e3c6fd",
+  "commit": "6e91b8e",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": []
  },
@@ -444,7 +444,7 @@
   "replacement": "Athènes",
   "description": "Athénes → Athènes (French è misread as é)",
   "line": 523,
-  "commit": "4e3c6fd",
+  "commit": "6e91b8e",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": []
  },
@@ -455,7 +455,7 @@
   "replacement": "siècle",
   "description": "siécle → siècle (French è misread as é)",
   "line": 527,
-  "commit": "4e3c6fd",
+  "commit": "6e91b8e",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": []
  },
@@ -466,7 +466,7 @@
   "replacement": "près",
   "description": "prés → près (French è misread as é; only before 'de'/'du', to avoid touching the real word 'prés', meadows)",
   "line": 531,
-  "commit": "4e3c6fd",
+  "commit": "6e91b8e",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": []
  },
@@ -477,7 +477,7 @@
   "replacement": "près",
   "description": "pres → près (accent dropped entirely by OCR; only before 'de'/'du', to avoid touching unrelated words)",
   "line": 536,
-  "commit": "4e3c6fd",
+  "commit": "6e91b8e",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": []
  },
@@ -488,7 +488,7 @@
   "replacement": "très",
   "description": "trés → très (French è misread as é)",
   "line": 541,
-  "commit": "4e3c6fd",
+  "commit": "6e91b8e",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": []
  },
@@ -499,7 +499,7 @@
   "replacement": "Lhôte",
   "description": "Lhéte → Lhôte (editor's surname, é/ô OCR confusion)",
   "line": 546,
-  "commit": "4e3c6fd",
+  "commit": "6e91b8e",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": []
  },
@@ -925,7 +925,7 @@
   "replacement": "Dodone,3",
   "description": "Dodone,<garbled symbol> → Dodone,3 (superscript footnote 3; the exact wrong symbol varies between OCR runs)",
   "line": 726,
-  "commit": "3051d27",
+  "commit": "9d21362",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": [
    "wildcard-overwrite: the match consumes an arbitrary character and the replacement is fixed"
@@ -938,7 +938,7 @@
   "replacement": "religieuses.4",
   "description": "religieuses.<garbled symbol> → religieuses.4 (superscript footnote 4)",
   "line": 731,
-  "commit": "3051d27",
+  "commit": "9d21362",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": [
    "wildcard-overwrite: the match consumes an arbitrary character and the replacement is fixed"
@@ -951,7 +951,7 @@
   "replacement": "pierre.5",
   "description": "pierre.<garbled symbol> → pierre.5 (superscript footnote 5)",
   "line": 735,
-  "commit": "3051d27",
+  "commit": "9d21362",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": [
    "wildcard-overwrite: the match consumes an arbitrary character and the replacement is fixed"
@@ -964,7 +964,7 @@
   "replacement": "Carbon.7",
   "description": "Carbon.<garbled symbol> → Carbon.7 (superscript footnote 7)",
   "line": 739,
-  "commit": "3051d27",
+  "commit": "9d21362",
   "source": "Alonso Deniz 2022, p. 2",
   "flags": [
    "wildcard-overwrite: the match consumes an arbitrary character and the replacement is fixed"

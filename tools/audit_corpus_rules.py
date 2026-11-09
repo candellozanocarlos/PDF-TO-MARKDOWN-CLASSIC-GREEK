@@ -38,9 +38,9 @@ OUT = ROOT / "verification" / "corpus_rules_provenance.json"
 # Commit prefix -> source label. Commits not listed fall back to their summary.
 SOURCE_LABELS = {
     "082ac67": "unrecorded (before the 1 Jul 2026 rename; origin not kept)",
-    "e35d45b": "Brill/Mnemosyne PDFs (4 Jul 2026)",
-    "4e3c6fd": "Alonso Deniz 2022, p. 2",
-    "3051d27": "Alonso Deniz 2022, p. 2",
+    "5d11833": "Brill/Mnemosyne PDFs (4 Jul 2026)",
+    "6e91b8e": "Alonso Deniz 2022, p. 2",
+    "9d21362": "Alonso Deniz 2022, p. 2",
 }
 
 _GREEK = re.compile(r"[Ͱ-Ͽἀ-῿]")
